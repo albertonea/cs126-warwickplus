@@ -2,14 +2,10 @@ package stores;
 
 import java.time.LocalDate;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import interfaces.IMovies;
-import structures.LinkedList;
-import structures.Movie;
-import structures.MovieCollection;
-import structures.SetSkipList;
+import structures.*;
 import structures.interfaces.List;
 
 public class Movies implements IMovies {
@@ -23,6 +19,7 @@ public class Movies implements IMovies {
     private Map<Integer, MovieCollection> collections = new HashMap<>();
     private Map<Integer, Integer> filmToCollection = new HashMap<>(); // filmID -> collectionID
     private SetSkipList<LocalDate, Integer> dateIndex = new SetSkipList<>();
+    private StringSearchIndex<Integer> searchIndex = new StringSearchIndex<>();
 
     /**
      * The constructor for the Movies data store. This is where you should
@@ -91,6 +88,14 @@ public class Movies implements IMovies {
         if (release != null) {
             dateIndex.put(release, id);
         }
+
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(title);
+        stringBuilder.append(" ");
+        stringBuilder.append(overview);
+        stringBuilder.append(" ");
+        stringBuilder.append(originalTitle);
+        searchIndex.add(id, stringBuilder.toString());
 
         this.size++;
         return true;
@@ -436,7 +441,9 @@ public class Movies implements IMovies {
      */
     @Override
     public boolean setVote(int id, double voteAverage, int voteCount) {
-        return movies.get(id).setVote(voteAverage, voteCount);
+        Movie movie = movies.get(id);
+        if (movie == null) return false;
+        return movie.setVote(voteAverage, voteCount);
     }
 
     /**
@@ -491,6 +498,10 @@ public class Movies implements IMovies {
     @Override
     public boolean addToCollection(int filmID, int collectionID, String collectionName, String collectionPosterPath,
             String collectionBackdropPath) {
+        if (movies.get(filmID) == null) {
+            return false;
+        }
+
         MovieCollection collection = collections.get(collectionID);
 
         if (collection == null) {
@@ -736,7 +747,6 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] findFilms(String searchTerm) {
-        // TODO Implement this function
-        return null;
+        return searchIndex.search(searchTerm).stream().mapToInt(Integer::intValue).toArray();
     }
 }

@@ -1,12 +1,18 @@
 package stores;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import interfaces.IRatings;
 import structures.*;
 
 public class Ratings implements IRatings {
     Stores stores;
+
+    // Hashmap user -> ratings for movieId
+//    Map<Integer, Map<Integer, MovieRating>> userIndex;
+    // Hashmap movie -> ratings for userId
+//    Map<Integer, Map<Integer, MovieRating>> movieIndex;
 
     /**
      * The constructor for the Ratings data store. This is where you should
