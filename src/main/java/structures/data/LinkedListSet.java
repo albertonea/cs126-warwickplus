@@ -1,7 +1,10 @@
-package structures;
+package structures.data;
 
-import structures.interfaces.List;
-import structures.interfaces.Set;
+import structures.data.interfaces.Collection;
+import structures.data.interfaces.List;
+import structures.data.interfaces.Set;
+
+import java.util.Iterator;
 
 public class LinkedListSet<E> implements Set<E> {
     List<E> linkedList = new LinkedList<>();
@@ -34,11 +37,22 @@ public class LinkedListSet<E> implements Set<E> {
         return linkedList.size();
     }
 
-    public E[] toArray() {
+    public Object[] toArray() {
         return linkedList.toArray();
     }
 
-    public LinkedList<E> toLinkedList() {
-        return linkedList.copy();
+    public List<E> toList() {
+        return linkedList.clone();
+    }
+
+    public Iterator<E> iterator() {
+        return linkedList.iterator();
+    }
+
+    public void addAll(Collection<E> toAdd) {
+    }
+
+    public void retainAll(Collection<E> toAdd) {
+
     }
 }

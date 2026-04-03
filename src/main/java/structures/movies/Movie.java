@@ -1,4 +1,4 @@
-package structures;
+package structures.movies;
 
 import stores.Company;
 import stores.Genre;

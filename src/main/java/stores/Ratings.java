@@ -1,18 +1,24 @@
 package stores;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 
 import interfaces.IRatings;
-import structures.*;
+import structures.data.HashMap;
+import structures.data.PriorityQueue;
+import structures.data.interfaces.Map;
+import structures.data.interfaces.Queue;
+import structures.ratings.Rating;
 
 public class Ratings implements IRatings {
     Stores stores;
 
-    // Hashmap user -> ratings for movieId
-//    Map<Integer, Map<Integer, MovieRating>> userIndex;
-    // Hashmap movie -> ratings for userId
-//    Map<Integer, Map<Integer, MovieRating>> movieIndex;
+    int size = 0;
+//     Hashmap user -> ratings for movieId
+    Map<Integer, Map<Integer, Rating>> userIndex = new HashMap<>();
+
+//     Hashmap movie -> ratings for userId
+    Map<Integer, Map<Integer, Rating>> movieIndex = new HashMap<>();
+    // priority queue with a min-heap for the implementation
 
     /**
      * The constructor for the Ratings data store. This is where you should
@@ -38,8 +44,27 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean add(int userid, int movieid, float rating, LocalDateTime timestamp) {
-        // TODO Implement this function
-        return false;
+        Map<Integer, Rating> userRatings = userIndex.get(userid);
+        if (userRatings != null) {
+            userRatings.put(movieid, new Rating(rating, timestamp));
+        } else {
+            Map<Integer, Rating> newRatings = new HashMap<>();
+            newRatings.put(movieid, new Rating(rating, timestamp));
+            userIndex.put(userid, newRatings);
+        }
+
+        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
+        if (movieRatings != null) {
+            movieRatings.put(userid, new Rating(rating, timestamp));
+        } else {
+            Map<Integer, Rating> newRatings = new HashMap<>();
+            newRatings.put(userid, new Rating(rating, timestamp));
+            movieIndex.put(movieid, newRatings);
+        }
+
+        size++;
+
+        return true;
     }
 
     /**
@@ -52,8 +77,14 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean remove(int userid, int movieid) {
-        // TODO Implement this function
-        return false;
+        var user = userIndex.get(userid);
+        if (user != null) user.remove(movieid);
+
+        var movie = movieIndex.get(movieid);
+        if (movie != null) movie.remove(userid);
+        size--;
+
+        return true;
     }
 
     /**
@@ -71,8 +102,29 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean set(int userid, int movieid, float rating, LocalDateTime timestamp) {
-        // TODO Implement this function
-        return false;
+        Map<Integer, Rating> userRatings = userIndex.get(userid);
+        if (userRatings != null) {
+            var i = userRatings.put(movieid, new Rating(rating, timestamp));
+            if (i == null) {
+                size++;
+            }
+        } else {
+            Map<Integer, Rating> newRatings = new HashMap<>();
+            newRatings.put(movieid, new Rating(rating, timestamp));
+            userIndex.put(userid, newRatings);
+            size++;
+        }
+
+        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
+        if (movieRatings != null) {
+            movieRatings.put(userid, new Rating(rating, timestamp));
+        } else {
+            Map<Integer, Rating> newRatings = new HashMap<>();
+            newRatings.put(userid, new Rating(rating, timestamp));
+            movieIndex.put(movieid, newRatings);
+        }
+
+        return true;
     }
 
     /**
@@ -84,8 +136,18 @@ public class Ratings implements IRatings {
      */
     @Override
     public float[] getMovieRatings(int movieid) {
-        // TODO Implement this function
-        return null;
+        var movie = movieIndex.get(movieid);
+        if (movie == null) {
+            return new float[0];
+        }
+
+        float[] ratings = new float[movie.size()];
+        int i = 0;
+        for (var rating : movie.entrySet()) {
+            ratings[i++] = rating.getValue().getRating();
+        }
+
+        return ratings;
     }
 
     /**
@@ -97,8 +159,18 @@ public class Ratings implements IRatings {
      */
     @Override
     public float[] getUserRatings(int userid) {
-        // TODO Implement this function
-        return null;
+        var user = userIndex.get(userid);
+        if (user == null) {
+            return new float[0];
+        }
+
+        float[] ratings = new float[user.size()];
+        int i = 0;
+        for (var rating : user.entrySet()) {
+            ratings[i++] = rating.getValue().getRating();
+        }
+
+        return ratings;
     }
 
     /**
@@ -111,8 +183,20 @@ public class Ratings implements IRatings {
      */
     @Override
     public float getMovieAverageRating(int movieid) {
-        // TODO Implement this function
-        return -2.0f;
+        var movie = movieIndex.get(movieid);
+        if (movie == null) {
+            if (stores.getMovies().getOverview(movieid) == null) {
+                return -1.0f;
+            }
+            return 0.0f;
+        }
+
+        float ratings = 0;
+        for (var rating : movie.entrySet()) {
+            ratings += rating.getValue().getRating();
+        }
+
+        return ratings/movie.size();
     }
 
     /**
@@ -124,8 +208,17 @@ public class Ratings implements IRatings {
      */
     @Override
     public float getUserAverageRating(int userid) {
-        // TODO Implement this function
-        return -2.0f;
+        var user = userIndex.get(userid);
+        if (user == null || user.size() == 0) {
+            return -1.0f;
+        }
+
+        float ratings = 0;
+        for (var rating : user.entrySet()) {
+            ratings += rating.getValue().getRating();
+        }
+
+        return ratings/user.size();
     }
 
     /**
@@ -166,8 +259,14 @@ public class Ratings implements IRatings {
      */
     @Override
     public int getNumRatings(int movieid) {
-        // TODO Implement this function
-        return -2;
+        var movie = movieIndex.get(movieid);
+        if (movie == null) {
+            if (stores.getMovies().getOverview(movieid) == null) {
+                return -1;
+            }
+            return 0;
+        }
+        return movie.size();
     }
 
     /**
@@ -192,7 +291,6 @@ public class Ratings implements IRatings {
      */
     @Override
     public int size() {
-        // TODO Implement this function
-        return -1;
+        return size;
     }
 }

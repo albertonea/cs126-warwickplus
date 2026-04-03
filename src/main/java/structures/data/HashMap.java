@@ -1,11 +1,14 @@
-package structures;
+package structures.data;
+
+import structures.data.interfaces.Map;
+import structures.data.interfaces.Set;
 
 import java.util.Objects;
 
-public class HashMap<K, V> {
-    class Node<K, V> {
-        public final int hash;
-        public final K key;
+public class HashMap<K, V> implements Map<K, V> {
+    class Node<K, V> implements Entry<K, V> {
+        final int hash;
+        final K key;
         V value;
         Node next;
 
@@ -13,6 +16,18 @@ public class HashMap<K, V> {
             this.hash = hash;
             this.key = key;
             this.value = value;
+        }
+
+        public int hashCode() {
+            return Objects.hashCode(key) ^ Objects.hashCode(value);
+        }
+
+        public K getKey() {
+            return key;
+        }
+
+        public V getValue() {
+            return value;
         }
     }
 
@@ -32,14 +47,20 @@ public class HashMap<K, V> {
     }
 
     public HashMap(int initialSize) {
-        this.buckets = nextPowerOfTwo(initialSize);
+        if (initialSize > 0) {
+            this.buckets = nextPowerOfTwo(initialSize);
+        }
         this.items = new Node[buckets];
     }
 
     public HashMap(int initialSize, float loadFactor) {
-        this.buckets = nextPowerOfTwo(initialSize);
+        if (initialSize > 0)
+            this.buckets = nextPowerOfTwo(initialSize);
+
         this.items = new Node[buckets];
-        this.loadFactor = loadFactor;
+
+        if (loadFactor > 0.0f && loadFactor < 1.0f)
+            this.loadFactor = loadFactor;
     }
 
     private int indexFor(int hash, int length) {
@@ -123,6 +144,56 @@ public class HashMap<K, V> {
         }
 
         return null;
+    }
+
+    public V getOrDefault(K key, V fallback) {
+        V value = get(key);
+        if (value == null) {
+            return fallback;
+        }
+
+        return value;
+    }
+
+    public int size() {
+        return size;
+    }
+
+    public void clear() {
+        items = new Node[16];
+        buckets = 16;
+        size = 0;
+    }
+
+    public Set<Entry<K, V>> entrySet() {
+        Set<Entry<K, V>> entries = new LinkedListSet<>();
+
+        for (Node<K, V> head : items) {
+            Node<K, V> current = head;
+            while (current != null) {
+                entries.add(current);
+                current = current.next;
+            }
+        }
+        return entries;
+    }
+
+    public Set<K> keySet(){
+        Set<K> keys = new LinkedListSet<>();
+
+        for (Node<K, V> head : items) {
+            Node<K, V> current = head;
+            while (current != null) {
+                keys.add(current.key);
+                current = current.next;
+            }
+        }
+
+        return keys;
+    }
+
+    public boolean containsKey(K key) {
+        return get(key) != null;
     }
 
     private int hash(K key) {

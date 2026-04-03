@@ -1,12 +1,17 @@
 package stores;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 import interfaces.IMovies;
-import structures.*;
-import structures.interfaces.List;
+import structures.data.HashMap;
+import structures.data.SetSkipList;
+import structures.data.StringSearchIndex;
+import structures.data.interfaces.List;
+import structures.data.interfaces.Map;
+import structures.movies.Movie;
+import structures.movies.MovieCollection;
 
 public class Movies implements IMovies {
     Stores stores;
@@ -128,7 +133,8 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] getAllIDs() {
-        return movies.keySet().stream().mapToInt(Integer::intValue).toArray();
+//        return Arrays.stream(movies.keySet().toArray()).mapToInt(Integer::intValue).toArray();
+        return new int[1];
     }
 
     /**
@@ -747,6 +753,11 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] findFilms(String searchTerm) {
-        return searchIndex.search(searchTerm).stream().mapToInt(Integer::intValue).toArray();
+        Integer[] items = Stream.of(searchIndex.search(searchTerm).toArray()).toArray(Integer[]::new);
+        int[] result = new int[items.length];
+        for (int i = 0; i < items.length; i++) {
+            result[i] = items[i].intValue();
+        }
+        return result;
     }
 }

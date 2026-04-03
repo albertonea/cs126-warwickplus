@@ -1,15 +1,15 @@
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import structures.StringSearchIndex;
+import structures.data.StringSearchIndex;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StringSearchIndexTest {
-    StringSearchIndex searchIndex;
+    StringSearchIndex<Integer> searchIndex;
 
     @BeforeEach
     void setup() {
-        this.searchIndex = new StringSearchIndex();
+        this.searchIndex = new StringSearchIndex<>();
     }
 
     @Test

@@ -1,7 +1,7 @@
-package structures;
+package structures.data;
 
-import structures.interfaces.List;
-import structures.interfaces.Set;
+import structures.data.interfaces.List;
+import structures.data.interfaces.Set;
 
 import java.util.Random;
 
@@ -17,14 +17,12 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
         tail.setPrev(head);
     }
 
-    // --------- Public API ---------
-
-    public V[] get(K key) {
+    public List<V> get(K key) {
         Node<K, V> node = findNode(key);
         if (node == null) {
             return null;
         }
-        return (V[]) node.getValues().toArray(); // returns first / only element
+        return node.getValues().toList();
     }
 
     public List<V> getRange(K from, K to) {
@@ -36,11 +34,13 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
         if (tmp == null) return null;
         tmp = tmp.getBottom();
 
-        LinkedList<V> merged = new LinkedList<>();
+        List<V> merged = new LinkedList<>();
         while (!tmp.isEnd() && !tmp.keyGreaterThan(to)) {
             // Expose inner LinkedList from your Set implementation
-            LinkedList<V> values = tmp.getValues().toLinkedList();
-            merged = LinkedList.merge(merged, values);
+            var values = tmp.getValues();
+            if (values != null) {
+                merged.addAll(values);
+            }
             tmp = tmp.getNext();
         }
 
@@ -99,8 +99,6 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
         return true;
     }
 
-
-    // --------- Internal navigation ---------
 
     private void nodeEmpty(Node<K, V> node) {
         var tmpNode = node;
@@ -165,8 +163,6 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
         return null;
     }
 
-    // --------- Height management ---------
-
     private int randomHeight() {
         int h = 1;
         while (coinFlip()) {
@@ -220,8 +216,6 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
         right.setPrev(node);
     }
 
-    // --------- Node hierarchy ---------
-
     private static abstract class Node<K extends Comparable<? super K>, V> {
         private Node<K, V> next;
         private Node<K, V> prev;
@@ -234,6 +228,7 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
             if (values.isEmpty()) {
                 return null;
             }
+
             return values;
         }
 

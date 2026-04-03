@@ -1,6 +1,6 @@
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import structures.SetSkipList;
+import structures.data.SetSkipList;
 
 import java.time.LocalDate;
 
@@ -21,7 +21,7 @@ public class SetSkipListTest {
     @Test void searchingSingleItemInSkipListReturnsItem() {
         LocalDate date = LocalDate.of(2007, 3, 11);
         list.put(date, 1);
-        assertArrayEquals(new Object[]{1}, list.get(date));
+        assertArrayEquals(new Object[]{1}, list.get(date).toArray());
     }
 
     @Test void searchingMultipleItemsInSkipListReturnsItems() {
@@ -32,9 +32,9 @@ public class SetSkipListTest {
         list.put(date, 2);
         list.put(date1, 2);
         list.put(date2, 3);
-        assertArrayEquals(new Object[]{2, 1}, list.get(date));
-        assertArrayEquals(new Object[]{2}, list.get(date1));
-        assertArrayEquals(new Object[]{3}, list.get(date2));
+        assertArrayEquals(new Object[]{1, 2}, list.get(date).toArray());
+        assertArrayEquals(new Object[]{2}, list.get(date1).toArray());
+        assertArrayEquals(new Object[]{3}, list.get(date2).toArray());
     }
 
     @Test void removingItemInSkipListAndGettingReturnsNull() {
@@ -49,7 +49,7 @@ public class SetSkipListTest {
         list.put(date, 1);
         list.put(date, 2);
         list.remove(date, 1);
-        assertArrayEquals(new Object[]{2}, list.get(date));
+        assertArrayEquals(new Object[]{2}, list.get(date).toArray());
     }
 
     @Test void removingSingleItemInThreeItemSkipListAndGettingReturnsSingleItem() {
@@ -61,8 +61,8 @@ public class SetSkipListTest {
         list.put(date1, 2);
         list.put(date2, 3);
         list.remove(date1, 2);
-        assertArrayEquals(new Object[]{2, 1}, list.get(date));
-        assertArrayEquals(new Object[]{3}, list.get(date2));
+        assertArrayEquals(new Object[]{1, 2}, list.get(date).toArray());
+        assertArrayEquals(new Object[]{3}, list.get(date2).toArray());
         assertNull(list.get(date1));
     }
 

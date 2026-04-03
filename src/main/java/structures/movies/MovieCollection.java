@@ -1,4 +1,4 @@
-package structures;
+package structures.movies;
 
 import java.util.ArrayList;
 import java.util.List;
