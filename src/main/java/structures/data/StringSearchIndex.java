@@ -51,6 +51,22 @@ public class StringSearchIndex<E> {
         return checked;
     }
 
+    public boolean remove(E element) {
+        String searchTerm = searchTerms.remove(element);
+        if (searchTerm == null)
+            return false;
+
+        for (String gram : ngrams(searchTerm)) {
+            Set<E> set = idx.get(gram);
+            if (set != null) {
+                set.remove(element);
+                if (set.isEmpty())
+                    idx.remove(gram);
+            }
+        }
+        return true;
+    }
+
     private boolean matches(String item, String query) {
         return item.contains(query);
     }

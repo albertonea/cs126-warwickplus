@@ -7,7 +7,7 @@ import java.util.Comparator;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PriorityListTest {
+public class PriorityQueueTest {
     Queue<Integer> queue;
 
     @BeforeEach

@@ -122,6 +122,7 @@ public class Movies implements IMovies {
 
         var movie = movies.remove(id);
         dateIndex.remove(movie.getRelease(), id);
+        searchIndex.remove(movie.getId());
         size--;
         return true;
     }
@@ -133,8 +134,14 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] getAllIDs() {
-//        return Arrays.stream(movies.keySet().toArray()).mapToInt(Integer::intValue).toArray();
-        return new int[1];
+        var keys = movies.keySet();
+        int[] ids = new int[keys.size()];
+        int i = 0;
+        for (var key: keys) {
+            ids[i++] = key;
+        }
+
+        return ids;
     }
 
     /**

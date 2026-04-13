@@ -1,5 +1,6 @@
 package structures.data;
 
+
 import structures.data.interfaces.List;
 import structures.data.interfaces.Set;
 
@@ -22,7 +23,7 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
         if (node == null) {
             return null;
         }
-        return node.getValues().toList();
+        return node.getBottom().getValues().toList();
     }
 
     public List<V> getRange(K from, K to) {
@@ -51,7 +52,7 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
     public void put(K key, V value) {
         Node<K, V> existingNode = findNode(key);
         if (existingNode != null) {
-            existingNode.add(value);
+            existingNode.getBottom().add(value);
             return;
         }
 
@@ -68,7 +69,6 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
             if (next.isEnd() || next.keyGreaterThan(key)) {
                 if (currentLevel <= newNodeHeight) {
                     Node<K, V> nodeToInsert = new DataNode<>(key);
-                    nodeToInsert.add(value);
                     spliceBetween(current, next, nodeToInsert);
 
                     if (lastInserted != null) {
@@ -83,6 +83,10 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
                 current = next;
             }
         }
+
+        if (lastInserted != null) {
+            lastInserted.add(value);
+        }
     }
 
     public boolean remove(K key, V value) {
@@ -91,7 +95,8 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
             return false;
         }
 
-        Set<V> values = node.getValues();
+        Node<K, V> bottom = node.getBottom();
+        Set<V> values = bottom.getValues();
         values.remove(value);
         if (values.isEmpty()) {
             nodeEmpty(node);
@@ -110,16 +115,12 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
             tmpNode = tmpNode.getBelow();
         }
 
-        var underHead = this.head.getBelow();
-        var underTail = this.head.getNext().getBelow();
-        if (underHead == null) return;
-        while (underHead != null && underHead.getNext().isEnd()) {
-            underHead = underHead.getBelow();
-            underTail = underTail.getBelow();
+        while (height > 1 && this.head.getNext().isEnd()) {
+            this.head = this.head.getBelow();
+            this.head.setAbove(null);
+            this.head.getNext().setAbove(null);
+            height--;
         }
-
-        this.head.setBelow(underHead);
-        this.head.getNext().setBelow(underTail);
     }
 
     private Node<K, V> findNode(K key) {
@@ -176,10 +177,10 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
     }
 
     private void adjustHeightIfNeeded(int newNodeHeight) {
-        if (newNodeHeight < height) {
+        if (newNodeHeight <= height) {
             return;
         }
-        int extraLevels = newNodeHeight - (height - 1);
+        int extraLevels = newNodeHeight - height;
 
         Node<K, V> head = this.head;
         Node<K, V> tail = head.getNext();
@@ -225,10 +226,6 @@ public class SetSkipList<K extends Comparable<? super K>, V> {
         final Set<V> values = new LinkedListSet<>();
 
         public Set<V> getValues() {
-            if (values.isEmpty()) {
-                return null;
-            }
-
             return values;
         }
 

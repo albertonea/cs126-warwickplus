@@ -1,10 +1,11 @@
 package stores;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Comparator;
 
 import interfaces.IRatings;
-import structures.data.HashMap;
-import structures.data.PriorityQueue;
+import structures.data.*;
 import structures.data.interfaces.Map;
 import structures.data.interfaces.Queue;
 import structures.ratings.Rating;
@@ -45,6 +46,11 @@ public class Ratings implements IRatings {
     @Override
     public boolean add(int userid, int movieid, float rating, LocalDateTime timestamp) {
         Map<Integer, Rating> userRatings = userIndex.get(userid);
+        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
+        if (userRatings != null && userRatings.get(movieid) != null) {
+            return false;
+        }
+
         if (userRatings != null) {
             userRatings.put(movieid, new Rating(rating, timestamp));
         } else {
@@ -53,7 +59,6 @@ public class Ratings implements IRatings {
             userIndex.put(userid, newRatings);
         }
 
-        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
         if (movieRatings != null) {
             movieRatings.put(userid, new Rating(rating, timestamp));
         } else {
@@ -77,12 +82,23 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean remove(int userid, int movieid) {
-        var user = userIndex.get(userid);
-        if (user != null) user.remove(movieid);
+        Map<Integer, Rating> userRatings = userIndex.get(userid);
+        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
+        if (movieRatings != null && movieRatings.get(userid) != null) {
+            userRatings.remove(movieid);
+            if (userRatings.size() == 0) {
+                userIndex.remove(userid);
+            }
+            movieRatings.remove(userid);
+            if (movieRatings.size() == 0) {
+                movieIndex.remove(movieid);
+            }
+        } else {
+            return false;
+        }
 
-        var movie = movieIndex.get(movieid);
-        if (movie != null) movie.remove(userid);
-        size--;
+        if (size > 0)
+            size--;
 
         return true;
     }
@@ -231,8 +247,17 @@ public class Ratings implements IRatings {
      */
     @Override
     public int[] getMostRatedMovies(int num) {
-        // TODO Implement this function
-        return null;
+        RatingCount[] movieRatingCount = new RatingCount[movieIndex.size()];
+        int i = 0;
+
+        for (var ratings : movieIndex.entrySet()) {
+            movieRatingCount[i++] = new RatingCount(ratings.getKey(), ratings.getValue().size());
+        }
+
+        TopK<RatingCount> topK = new
+                TopK<>(Comparator.comparingInt(RatingCount::ratingCount).reversed());
+
+        return topK.topKInt(movieRatingCount, num, RatingCount::entity);
     }
 
     /**
@@ -245,8 +270,17 @@ public class Ratings implements IRatings {
      */
     @Override
     public int[] getMostRatedUsers(int num) {
-        // TODO Implement this function
-        return null;
+        RatingCount[] userRatingCount = new RatingCount[userIndex.size()];
+        int i = 0;
+
+        for (var ratings : userIndex.entrySet()) {
+            userRatingCount[i++] = new RatingCount(ratings.getKey(), ratings.getValue().size());
+        }
+
+        TopK<RatingCount> topK = new
+                TopK<>(Comparator.comparingInt(RatingCount::ratingCount).reversed());
+
+        return topK.topKInt(userRatingCount, num, RatingCount::entity);
     }
 
     /**
@@ -280,8 +314,31 @@ public class Ratings implements IRatings {
      */
     @Override
     public int[] getTopAverageRatedMovies(int numResults) {
-        // TODO Implement this function
-        return null;
+        System.out.println("Top average ratings for: " + numResults);
+        System.out.println("Total movies: " + movieIndex.size());
+        if (numResults <= 0 || movieIndex.size() == 0) {
+            return new int[0];
+        }
+
+        MovieRating[] movieRatings = new MovieRating[movieIndex.size()];
+        int count = 0;
+
+        for (Map.Entry<Integer, Map<Integer, Rating>> movieEntry : movieIndex.entrySet()) {
+            Map<Integer, Rating> ratings = movieEntry.getValue();
+
+            double avgRating = 0;
+            for (Rating rating : ratings.valueSet()) {
+                avgRating += rating.getRating();
+            }
+            avgRating /= ratings.size();
+
+            movieRatings[count++] = new MovieRating(movieEntry.getKey(), avgRating);
+        }
+
+        TopK<MovieRating> topK = new
+                TopK<>(Comparator.comparingDouble(MovieRating::avgRating).reversed());
+
+        return topK.topKInt(movieRatings, numResults, MovieRating::movieId);
     }
 
     /**

@@ -13,16 +13,6 @@ public class PriorityQueue<E> implements Queue<E> {
 
     Comparator<E> comparator;
 
-    public PriorityQueue() {
-        this.heap = new Object[length];
-    }
-
-    public PriorityQueue(int initialSize) {
-        if (initialSize > 0)
-            this.length = initialSize;
-        this.heap = new Object[length];
-    }
-
     public PriorityQueue(Comparator<E> comparator) {
         this.comparator = comparator;
         this.heap = new Object[length];
@@ -62,20 +52,24 @@ public class PriorityQueue<E> implements Queue<E> {
 
     private void downheap() {
         int parent = 0;
+        int smallest = smallestChild(parent);
+        while (smallest != parent) {
+            swap(parent, smallest);
+            parent = smallest;
+            smallest = smallestChild(parent);
+        }
+    }
+
+    private int smallestChild(int parent) {
         int left = 2 * parent + 1;
         int right = 2 * parent + 2;
-        while ((left < size || right < size) && (compare(parent, left) > 0 || compare(parent, right) > 0)) {
-            if (compare(parent, left) > 0) {
-                swap(parent, left);
-                parent = left;
-            } else if (compare(parent, right) > 0) {
-                swap(parent, right);
-                parent = right;
-            }
+        int smallest = parent;
 
-            left = 2 * parent + 1;
-            right = 2 * parent + 2;
-        }
+        if (left < size && compare(left, smallest) < 0)
+            smallest = left;
+        if (right < size && compare(right, smallest) < 0)
+            smallest = right;
+        return smallest;
     }
 
     private void swap(int from, int to) {
@@ -86,7 +80,10 @@ public class PriorityQueue<E> implements Queue<E> {
 
     private void checkResize() {
         if (size == length) {
-            this.size = size << 1;
+            this.length = length << 1;
+            Object[] newHeap = new Object[length];
+            System.arraycopy(heap, 0, newHeap, 0, size);
+            this.heap = newHeap;
         }
     }
 
@@ -116,7 +113,7 @@ public class PriorityQueue<E> implements Queue<E> {
     }
 
     public boolean isEmpty() {
-        return false;
+        return size == 0;
     }
 
     public boolean remove(E element) {

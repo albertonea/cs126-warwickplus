@@ -192,6 +192,20 @@ public class HashMap<K, V> implements Map<K, V> {
         return keys;
     }
 
+    public Set<V> valueSet() {
+        Set<V> values = new LinkedListSet<>();
+
+        for (Node<K, V> head : items) {
+            Node<K, V> current = head;
+            while (current != null) {
+                values.add(current.value);
+                current = current.next;
+            }
+        }
+
+        return values;
+    }
+
     public boolean containsKey(K key) {
         return get(key) != null;
     }

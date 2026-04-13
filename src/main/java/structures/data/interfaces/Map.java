@@ -15,6 +15,7 @@ public interface Map<K, V> {
     public void clear();
     public Set<Entry<K, V>> entrySet();
     public Set<K> keySet();
+    public Set<V> valueSet();
     public boolean containsKey(K key);
 
 }
