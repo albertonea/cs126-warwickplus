@@ -6,6 +6,8 @@ import structures.data.interfaces.Map;
 import structures.data.interfaces.Set;
 
 import java.util.Iterator;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 public class HashSet<E> implements Set<E> {
     Map<E, Object> mapping = new HashMap<>();
@@ -46,8 +48,16 @@ public class HashSet<E> implements Set<E> {
         return mapping.keySet().toList();
     }
 
-    public Object[] toArray() {
-        return mapping.keySet().toArray();
+    public E[] toArray(Class<E> type) {
+        return mapping.keySet().toArray(type);
+    }
+
+    public int[] toIntArray(ToIntFunction<? super E> mapper) {
+        return mapping.keySet().toIntArray(mapper);
+    }
+
+    public <T> T[] toArray(Class<T> type, Function<? super E, ? extends T> mapper) {
+        return mapping.keySet().toArray(type, mapper);
     }
 
     public Iterator<E> iterator() {

@@ -1,24 +1,25 @@
 package stores;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Comparator;
 
 import interfaces.IRatings;
 import structures.data.*;
 import structures.data.interfaces.Map;
-import structures.data.interfaces.Queue;
-import structures.ratings.Rating;
+import structures.ratings.MovieRating;
+import structures.ratings.RatingCount;
+import structures.ratings.RatingWrapper;
 
 public class Ratings implements IRatings {
     Stores stores;
 
+    int INITIAL_CAPACITY = 3000;
     int size = 0;
 //     Hashmap user -> ratings for movieId
-    Map<Integer, Map<Integer, Rating>> userIndex = new HashMap<>();
+    Map<Integer, RatingWrapper> userIndex = new HashMap<>(INITIAL_CAPACITY);
 
 //     Hashmap movie -> ratings for userId
-    Map<Integer, Map<Integer, Rating>> movieIndex = new HashMap<>();
+    Map<Integer, RatingWrapper> movieIndex = new HashMap<>(INITIAL_CAPACITY);
     // priority queue with a min-heap for the implementation
 
     /**
@@ -45,26 +46,22 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean add(int userid, int movieid, float rating, LocalDateTime timestamp) {
-        Map<Integer, Rating> userRatings = userIndex.get(userid);
-        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
+        RatingWrapper userRatings = userIndex.get(userid);
+        RatingWrapper movieRatings = movieIndex.get(movieid);
         if (userRatings != null && userRatings.get(movieid) != null) {
             return false;
         }
 
         if (userRatings != null) {
-            userRatings.put(movieid, new Rating(rating, timestamp));
+            userRatings.put(movieid, rating, timestamp);
         } else {
-            Map<Integer, Rating> newRatings = new HashMap<>();
-            newRatings.put(movieid, new Rating(rating, timestamp));
-            userIndex.put(userid, newRatings);
+            userIndex.put(userid, new RatingWrapper(movieid, rating, timestamp));
         }
 
         if (movieRatings != null) {
-            movieRatings.put(userid, new Rating(rating, timestamp));
+            movieRatings.put(userid, rating, timestamp);
         } else {
-            Map<Integer, Rating> newRatings = new HashMap<>();
-            newRatings.put(userid, new Rating(rating, timestamp));
-            movieIndex.put(movieid, newRatings);
+            movieIndex.put(movieid, new RatingWrapper(userid, rating, timestamp));
         }
 
         size++;
@@ -82,25 +79,25 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean remove(int userid, int movieid) {
-        Map<Integer, Rating> userRatings = userIndex.get(userid);
-        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
+        RatingWrapper userRatings = userIndex.get(userid);
+        RatingWrapper movieRatings = movieIndex.get(movieid);
+
         if (movieRatings != null && movieRatings.get(userid) != null) {
             userRatings.remove(movieid);
             if (userRatings.size() == 0) {
                 userIndex.remove(userid);
             }
+
             movieRatings.remove(userid);
             if (movieRatings.size() == 0) {
                 movieIndex.remove(movieid);
             }
-        } else {
-            return false;
+
+            size--;
+            return true;
         }
 
-        if (size > 0)
-            size--;
-
-        return true;
+        return false;
     }
 
     /**
@@ -118,26 +115,21 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean set(int userid, int movieid, float rating, LocalDateTime timestamp) {
-        Map<Integer, Rating> userRatings = userIndex.get(userid);
+        RatingWrapper userRatings = userIndex.get(userid);
         if (userRatings != null) {
-            var i = userRatings.put(movieid, new Rating(rating, timestamp));
-            if (i == null) {
+            if (userRatings.put(movieid, rating, timestamp) == null)
                 size++;
-            }
+
         } else {
-            Map<Integer, Rating> newRatings = new HashMap<>();
-            newRatings.put(movieid, new Rating(rating, timestamp));
-            userIndex.put(userid, newRatings);
+            userIndex.put(userid, new RatingWrapper(movieid, rating, timestamp));
             size++;
         }
 
-        Map<Integer, Rating> movieRatings = movieIndex.get(movieid);
+        RatingWrapper movieRatings = movieIndex.get(movieid);
         if (movieRatings != null) {
-            movieRatings.put(userid, new Rating(rating, timestamp));
+            movieRatings.put(userid, rating, timestamp);
         } else {
-            Map<Integer, Rating> newRatings = new HashMap<>();
-            newRatings.put(userid, new Rating(rating, timestamp));
-            movieIndex.put(movieid, newRatings);
+            movieIndex.put(userid, new RatingWrapper(movieid, rating, timestamp));
         }
 
         return true;
@@ -152,15 +144,15 @@ public class Ratings implements IRatings {
      */
     @Override
     public float[] getMovieRatings(int movieid) {
-        var movie = movieIndex.get(movieid);
+        RatingWrapper movie = movieIndex.get(movieid);
         if (movie == null) {
             return new float[0];
         }
 
         float[] ratings = new float[movie.size()];
         int i = 0;
-        for (var rating : movie.entrySet()) {
-            ratings[i++] = rating.getValue().getRating();
+        for (var rating : movie.ratings()) {
+            ratings[i++] = rating.getRating();
         }
 
         return ratings;
@@ -182,8 +174,8 @@ public class Ratings implements IRatings {
 
         float[] ratings = new float[user.size()];
         int i = 0;
-        for (var rating : user.entrySet()) {
-            ratings[i++] = rating.getValue().getRating();
+        for (var rating : user.ratings()) {
+            ratings[i++] = rating.getRating();
         }
 
         return ratings;
@@ -207,12 +199,7 @@ public class Ratings implements IRatings {
             return 0.0f;
         }
 
-        float ratings = 0;
-        for (var rating : movie.entrySet()) {
-            ratings += rating.getValue().getRating();
-        }
-
-        return ratings/movie.size();
+        return movie.averageRating();
     }
 
     /**
@@ -229,12 +216,7 @@ public class Ratings implements IRatings {
             return -1.0f;
         }
 
-        float ratings = 0;
-        for (var rating : user.entrySet()) {
-            ratings += rating.getValue().getRating();
-        }
-
-        return ratings/user.size();
+        return user.averageRating();
     }
 
     /**
@@ -314,8 +296,6 @@ public class Ratings implements IRatings {
      */
     @Override
     public int[] getTopAverageRatedMovies(int numResults) {
-        System.out.println("Top average ratings for: " + numResults);
-        System.out.println("Total movies: " + movieIndex.size());
         if (numResults <= 0 || movieIndex.size() == 0) {
             return new int[0];
         }
@@ -323,16 +303,8 @@ public class Ratings implements IRatings {
         MovieRating[] movieRatings = new MovieRating[movieIndex.size()];
         int count = 0;
 
-        for (Map.Entry<Integer, Map<Integer, Rating>> movieEntry : movieIndex.entrySet()) {
-            Map<Integer, Rating> ratings = movieEntry.getValue();
-
-            double avgRating = 0;
-            for (Rating rating : ratings.valueSet()) {
-                avgRating += rating.getRating();
-            }
-            avgRating /= ratings.size();
-
-            movieRatings[count++] = new MovieRating(movieEntry.getKey(), avgRating);
+        for (Map.Entry<Integer, RatingWrapper> ratingMap : movieIndex.entrySet()) {
+            movieRatings[count++] = new MovieRating(ratingMap.getKey(), ratingMap.getValue().averageRating());
         }
 
         TopK<MovieRating> topK = new

@@ -1,8 +1,6 @@
 package stores;
 
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 import interfaces.IMovies;
 import structures.data.HashMap;
@@ -15,14 +13,13 @@ import structures.movies.MovieCollection;
 
 public class Movies implements IMovies {
     Stores stores;
-    private int INITIAL_CAPACITY = 1000;
+    private int INITIAL_CAPACITY = 3000;
 
     int size = 0;
-    int capacity = INITIAL_CAPACITY;
 
-    private Map<Integer, Movie> movies = new HashMap<>();
-    private Map<Integer, MovieCollection> collections = new HashMap<>();
-    private Map<Integer, Integer> filmToCollection = new HashMap<>(); // filmID -> collectionID
+    private Map<Integer, Movie> movies = new HashMap<>(INITIAL_CAPACITY);
+    private Map<Integer, MovieCollection> collections = new HashMap<>(INITIAL_CAPACITY);
+
     private SetSkipList<LocalDate, Integer> dateIndex = new SetSkipList<>();
     private StringSearchIndex<Integer> searchIndex = new StringSearchIndex<>();
 
@@ -82,14 +79,15 @@ public class Movies implements IMovies {
             boolean video,
             String poster) {
 
-        Movie movie = new Movie(title, originalTitle, overview, tagline, status, genres, release, budget, revenue,
-                languages, originalLanguage, runtime, homepage, adult, video, poster);
-
         if (movies.containsKey(id)) {
             return false;
         }
 
+        Movie movie = new Movie(title, originalTitle, overview, tagline, status, genres, release, budget, revenue,
+                languages, originalLanguage, runtime, homepage, adult, video, poster);
+
         movies.put(id, movie);
+
         if (release != null) {
             dateIndex.put(release, id);
         }
@@ -115,14 +113,18 @@ public class Movies implements IMovies {
      */
     @Override
     public boolean remove(int id) {
-        // TODO Implement this function
         if (!movies.containsKey(id)) {
             return false;
         }
 
-        var movie = movies.remove(id);
+        Movie movie = movies.remove(id);
         dateIndex.remove(movie.getRelease(), id);
         searchIndex.remove(movie.getId());
+        if (movie.getCollectionId() != -1) {
+            MovieCollection collection = collections.get(movie.getCollectionId());
+            collection.removeFilm(id);
+        }
+
         size--;
         return true;
     }
@@ -509,23 +511,22 @@ public class Movies implements IMovies {
      * @return TRUE if the data able to be added, FALSE otherwise
      */
     @Override
-    public boolean addToCollection(int filmID, int collectionID, String collectionName, String collectionPosterPath,
-            String collectionBackdropPath) {
-        if (movies.get(filmID) == null) {
+    public boolean addToCollection(int filmID, int collectionID, String collectionName, String collectionPosterPath, String collectionBackdropPath) {
+        Movie movie = movies.get(filmID);
+        if (movie == null) {
             return false;
         }
 
         MovieCollection collection = collections.get(collectionID);
 
         if (collection == null) {
-            MovieCollection newCollection = new MovieCollection(collectionName, collectionPosterPath,
-                    collectionBackdropPath);
-            newCollection.addFilm(filmID);
+            MovieCollection newCollection = new MovieCollection(collectionName, collectionPosterPath, collectionBackdropPath, filmID);
             collections.put(collectionID, newCollection);
         } else {
             collection.addFilm(filmID);
         }
-        filmToCollection.put(filmID, collectionID);
+
+        movie.setCollectionId(collectionID);
         return true;
     }
 
@@ -603,7 +604,12 @@ public class Movies implements IMovies {
      */
     @Override
     public int getCollectionID(int filmID) {
-        return filmToCollection.getOrDefault(filmID, -1);
+        Movie movie = movies.get(filmID);
+        if (movie == null) {
+            return -1;
+        }
+
+        return movie.getCollectionId();
     }
 
     /**
@@ -719,7 +725,7 @@ public class Movies implements IMovies {
         if (movie == null) {
             return null;
         }
-        return movie.getProductionCompanies().toArray(new Company[0]);
+        return movie.getProductionCompanies().toArray(Company.class);
     }
 
     /**
@@ -736,7 +742,7 @@ public class Movies implements IMovies {
         if (movie == null) {
             return null;
         }
-        return movie.getProductionCountries().toArray(new String[0]);
+        return movie.getProductionCountries().toArray(String.class);
     }
 
     /**
@@ -760,11 +766,14 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] findFilms(String searchTerm) {
-        Integer[] items = Stream.of(searchIndex.search(searchTerm).toArray()).toArray(Integer[]::new);
-        int[] result = new int[items.length];
-        for (int i = 0; i < items.length; i++) {
-            result[i] = items[i].intValue();
+        List<Integer> films = searchIndex.search(searchTerm);
+        int[] result = new int[films.size()];
+        int i = 0;
+
+        for (Integer film:films) {
+            result[i++] = film;
         }
+
         return result;
     }
 }

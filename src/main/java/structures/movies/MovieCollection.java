@@ -7,10 +7,11 @@ public class MovieCollection {
     String name, posterPath, backdropPath;
     List<Integer> filmIDs = new ArrayList<>();
 
-    public MovieCollection(String name, String posterPath, String backdropPath) {
+    public MovieCollection(String name, String posterPath, String backdropPath, int filmId) {
         this.name = name;
         this.posterPath = posterPath;
         this.backdropPath = backdropPath;
+        this.filmIDs.add(filmId);
     }
 
     public boolean addFilm(int filmID) {
@@ -32,5 +33,9 @@ public class MovieCollection {
 
     public String getBackdropPath() {
         return backdropPath;
+    }
+
+    public void removeFilm(int id) {
+        filmIDs.remove(id);
     }
 }

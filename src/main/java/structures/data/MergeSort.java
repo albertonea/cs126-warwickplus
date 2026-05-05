@@ -4,67 +4,72 @@ import java.util.Comparator;
 
 public final class MergeSort {
 
-    private static final int INSERTION_SORT_THRESHOLD = 16;
+    private static final int INSERTION_SORT_THRESHOLD = 48;
 
     private MergeSort() {}
 
     public static <E> void sort(E[] arr, Comparator<E> comparator) {
         if (arr.length <= 1) return;
-        E[] aux = arr.clone();
-        mergesort(aux, arr, 0, arr.length, comparator);
+        if (arr.length <= INSERTION_SORT_THRESHOLD) {
+            insertionSort(arr, 0, arr.length, comparator);
+        } else {
+            E[] aux = arr.clone();
+            mergesort(aux, arr, 0, arr.length, comparator);
+        }
     }
 
     public static <E> void sort(E[] arr, int from, int to, Comparator<E> comparator) {
         if (to - from <= 1) return;
-        E[] aux = arr.clone();
-        mergesort(aux, arr, from, to, comparator);
+        else if (to - from <= INSERTION_SORT_THRESHOLD) {
+            insertionSort(arr, from, to, comparator);
+        } else {
+            E[] tmp = arr.clone();
+            mergesort(tmp, arr, from, to, comparator);
+        }
     }
 
-    private static <E> void mergesort(E[] src, E[] dst, int lo, int hi, Comparator<E> cmp) {
-        if (hi - lo <= INSERTION_SORT_THRESHOLD) {
-            insertionSort(dst, lo, hi, cmp);
+    private static <E> void mergesort(E[] tmp, E[] arr, int from, int to, Comparator<E> cmp) {
+        if (to - from < 2) return;
+
+        int mid = from + (to - from) / 2;
+
+        mergesort(arr, tmp, from, mid, cmp);
+        mergesort(arr, tmp, mid, to, cmp);
+
+        if (cmp.compare(tmp[mid - 1], tmp[mid]) <= 0) {
+            System.arraycopy(tmp, from, arr, from, to - from);
             return;
         }
 
-        int mid = lo + (hi - lo) / 2;
-
-        // Recursively sort into src (note the swap: dst becomes src's source)
-        mergesort(dst, src, lo, mid, cmp);
-        mergesort(dst, src, mid, hi, cmp);
-
-        // If already ordered, just copy
-        if (cmp.compare(src[mid - 1], src[mid]) <= 0) {
-            System.arraycopy(src, lo, dst, lo, hi - lo);
-            return;
-        }
-
-        merge(src, dst, lo, mid, hi, cmp);
+        merge(tmp, arr, from, mid, to, cmp);
     }
 
-    private static <E> void merge(E[] src, E[] dst, int lo, int mid, int hi, Comparator<E> cmp) {
-        int i = lo;
+    private static <E> void merge(E[] tmp, E[] arr, int from, int mid, int to, Comparator<E> cmp) {
+        int i = from;
         int j = mid;
-        for (int k = lo; k < hi; k++) {
+        for (int k = from; k < to; k++) {
             if (i >= mid) {
-                dst[k] = src[j++];
-            } else if (j >= hi) {
-                dst[k] = src[i++];
-            } else if (cmp.compare(src[i], src[j]) <= 0) {
-                dst[k] = src[i++];
+                arr[k] = tmp[j++];
+            } else if (j >= to) {
+                arr[k] = tmp[i++];
+            } else if (cmp.compare(tmp[i], tmp[j]) <= 0) {
+                arr[k] = tmp[i++];
             } else {
-                dst[k] = src[j++];
+                arr[k] = tmp[j++];
             }
         }
     }
 
-    private static <E> void insertionSort(E[] arr, int lo, int hi, Comparator<E> cmp) {
-        for (int i = lo + 1; i < hi; i++) {
+    private static <E> void insertionSort(E[] arr, int from, int to, Comparator<E> cmp) {
+        for (int i = from + 1; i < to; i++) {
             E key = arr[i];
             int j = i - 1;
-            while (j >= lo && cmp.compare(arr[j], key) > 0) {
+
+            while (j >= from && cmp.compare(arr[j], key) > 0) {
                 arr[j + 1] = arr[j];
                 j--;
             }
+
             arr[j + 1] = key;
         }
     }

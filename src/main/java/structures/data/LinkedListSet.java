@@ -5,6 +5,8 @@ import structures.data.interfaces.List;
 import structures.data.interfaces.Set;
 
 import java.util.Iterator;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 public class LinkedListSet<E> implements Set<E> {
     List<E> linkedList = new LinkedList<>();
@@ -37,8 +39,18 @@ public class LinkedListSet<E> implements Set<E> {
         return linkedList.size();
     }
 
-    public Object[] toArray() {
-        return linkedList.toArray();
+    public E[] toArray(Class<E> type) {
+        return linkedList.toArray(type);
+    }
+
+    @Override
+    public int[] toIntArray(ToIntFunction<? super E> mapper) {
+        return linkedList.toIntArray(mapper);
+    }
+
+    @Override
+    public <T> T[] toArray(Class<T> type, Function<? super E, ? extends T> mapper) {
+        return linkedList.toArray(type, mapper);
     }
 
     public List<E> toList() {

@@ -4,8 +4,11 @@ package structures.data;
 import structures.data.interfaces.Collection;
 import structures.data.interfaces.List;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 public class LinkedList<E> implements List<E> {
     Element<E> head;
@@ -148,9 +151,11 @@ public class LinkedList<E> implements List<E> {
         return size;
     }
 
-    public Object[] toArray() {
+    public E[] toArray(Class<E> type) {
+        @SuppressWarnings("unchecked")
+        E[] items = (E[]) Array.newInstance(type, size);
+
         Element<E> tmp = head;
-        Object[] items = new Object[size];
         for (int i = 0; i < size; i++) {
             if (tmp == null) {
                 break;
@@ -158,6 +163,32 @@ public class LinkedList<E> implements List<E> {
             items[i] = tmp.value;
             tmp = tmp.next;
         }
+
+        return items;
+    }
+
+    public int[] toIntArray(ToIntFunction<? super E> mapper) {
+        int[] items = new int[size];
+
+        Element<E> tmp = head;
+        for (int i = 0; i < size && tmp != null; i++) {
+            items[i] = mapper.applyAsInt(tmp.value);
+            tmp = tmp.next;
+        }
+
+        return items;
+    }
+
+    public <T> T[] toArray(Class<T> type, Function<? super E, ? extends T> mapper) {
+        @SuppressWarnings("unchecked")
+        T[] items = (T[]) Array.newInstance(type, size);
+
+        Element<E> tmp = head;
+        for (int i = 0; i < size && tmp != null; i++) {
+            items[i] = mapper.apply(tmp.value);
+            tmp = tmp.next;
+        }
+
         return items;
     }
 

@@ -14,51 +14,54 @@ public class TopK<E> {
     }
 
     public E[] topK(E[] arr, int k) {
-        if (k <= 0 || arr.length == 0) {
-            return Arrays.copyOf(arr, 0);
-        }
-        k = Math.min(k, arr.length);
+        if (k <= 0 || arr.length == 0) return Arrays.copyOf(arr, 0);
 
+        k = Math.min(k, arr.length);
         E[] copy = Arrays.copyOf(arr, arr.length);
-        if (k < arr.length && arr.length >= 3) {
-            quickselect(copy, 0, copy.length - 1, k);
-        } else {
+
+        if (k >= arr.length || arr.length < 3) {
             MergeSort.sort(copy, comparator);
             return Arrays.copyOfRange(copy, 0, k);
         }
-        E[] result = Arrays.copyOfRange(copy, 0, k);
-        MergeSort.sort(result, comparator);
-        return result;
+
+        quickSortToTopK(copy, 0, copy.length - 1, k - 1);
+        return Arrays.copyOfRange(copy, 0, k);
     }
 
     public <R> R[] topK(E[] arr, int k, Function<E, R> mapper, IntFunction<R[]> arrayFactory) {
         E[] sorted = topK(arr, k);
         R[] result = arrayFactory.apply(sorted.length);
+
         for (int i = 0; i < sorted.length; i++) {
             result[i] = mapper.apply(sorted[i]);
         }
+
         return result;
     }
 
     public int[] topKInt(E[] arr, int k, ToIntFunction<E> mapper) {
         E[] sorted = topK(arr, k);
         int[] result = new int[sorted.length];
+
         for (int i = 0; i < sorted.length; i++) {
             result[i] = mapper.applyAsInt(sorted[i]);
         }
+
         return result;
     }
 
-    private void quickselect(E[] arr, int left, int right, int k) {
-        if (left >= right) return;
-        if (right - left < 3) {
-            MergeSort.sort(arr, left, right, comparator);
-            return;
+    private void quickSortToTopK(E[] arr, int from, int to, int targetIdx) {
+        if (from < to) {
+            int pivotIdx = partition(arr, from, to);
+
+            if (pivotIdx >= targetIdx) {
+                quickSortToTopK(arr, from, pivotIdx - 1, targetIdx);
+            }
+            else {
+                quickSortToTopK(arr, from, pivotIdx - 1, targetIdx);
+                quickSortToTopK(arr, pivotIdx + 1, to, targetIdx);
+            }
         }
-        int pivotIdx = partition(arr, left, right);
-        if (pivotIdx == k - 1) return;
-        else if (pivotIdx < k - 1) quickselect(arr, pivotIdx + 1, right, k);
-        else quickselect(arr, left, pivotIdx - 1, k);
     }
 
     private int partition(E[] arr, int left, int right) {

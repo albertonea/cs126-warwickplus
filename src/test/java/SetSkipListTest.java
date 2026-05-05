@@ -21,7 +21,7 @@ public class SetSkipListTest {
     @Test void searchingSingleItemInSkipListReturnsItem() {
         LocalDate date = LocalDate.of(2007, 3, 11);
         list.put(date, 1);
-        assertArrayEquals(new Object[]{1}, list.get(date).toArray());
+        assertArrayEquals(new Integer[]{1}, list.get(date).toArray(int.class));
     }
 
     @Test void searchingMultipleItemsInSkipListReturnsItems() {
@@ -32,9 +32,9 @@ public class SetSkipListTest {
         list.put(date, 2);
         list.put(date1, 2);
         list.put(date2, 3);
-        assertArrayEquals(new Object[]{1, 2}, list.get(date).toArray());
-        assertArrayEquals(new Object[]{2}, list.get(date1).toArray());
-        assertArrayEquals(new Object[]{3}, list.get(date2).toArray());
+        assertArrayEquals(new Integer[]{1, 2}, list.get(date).toArray(int.class));
+        assertArrayEquals(new Integer[]{2}, list.get(date1).toArray(int.class));
+        assertArrayEquals(new Integer[]{3}, list.get(date2).toArray(int.class));
     }
 
     @Test void removingItemInSkipListAndGettingReturnsNull() {
@@ -49,7 +49,7 @@ public class SetSkipListTest {
         list.put(date, 1);
         list.put(date, 2);
         list.remove(date, 1);
-        assertArrayEquals(new Object[]{2}, list.get(date).toArray());
+        assertArrayEquals(new Integer[]{2}, list.get(date).toArray(int.class));
     }
 
     @Test void removingSingleItemInThreeItemSkipListAndGettingReturnsSingleItem() {
@@ -61,8 +61,8 @@ public class SetSkipListTest {
         list.put(date1, 2);
         list.put(date2, 3);
         list.remove(date1, 2);
-        assertArrayEquals(new Object[]{1, 2}, list.get(date).toArray());
-        assertArrayEquals(new Object[]{3}, list.get(date2).toArray());
+        assertArrayEquals(new Integer[]{1, 2}, list.get(date).toArray(int.class));
+        assertArrayEquals(new Integer[]{3}, list.get(date2).toArray(int.class));
         assertNull(list.get(date1));
     }
 
@@ -89,6 +89,6 @@ public class SetSkipListTest {
         list.put(date1, 3);
         list.put(date2, 4);
         list.put(date3, 5);
-        assertArrayEquals(new Object[]{4, 3}, list.getRange(date2, date1).toArray());
+        assertArrayEquals(new Integer[]{4, 3}, list.getRange(date2, date1).toArray(int.class));
     }
 }

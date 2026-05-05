@@ -1,41 +1,32 @@
 package stores;
 
-import structures.*;
-
 import interfaces.ICredits;
+import structures.credits.Cast;
+import structures.credits.Crew;
+import structures.credits.FilmCredits;
 import structures.data.*;
 import structures.data.interfaces.List;
-import structures.data.interfaces.Map;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 
 public class Credits implements ICredits{
     Stores stores;
 
     // Film-centric: pre-sorted for O(1) retrieval
-    private final HashMap<Integer, CastCredit[]> filmCastMap;
-    private final HashMap<Integer, CrewCredit[]> filmCrewMap;
+    private final HashMap<Integer, FilmCredits> filmCredits = new HashMap<>();
 
-    // Person lookups by ID
-    private final HashMap<Integer, Person> castPersonMap;
-    private final HashMap<Integer, Person> crewPersonMap;
+    // Cast lookup by ID
+    private final HashMap<Integer, Cast> castMap = new HashMap<>();
 
-    // Reverse lookups: person -> films they appeared in
-    private final HashMap<Integer, ArrayList<Integer>> castFilmsMap;
-    private final HashMap<Integer, ArrayList<Integer>> crewFilmsMap;
+    // Crew lookup by ID
+    private final HashMap<Integer, Crew> crewMap = new HashMap<>();
 
-    // Top-3 billing films per cast member
-    private final HashMap<Integer, ArrayList<Integer>> castStarsFilmsMap;
-
-    // Total credit count per cast member (multiple roles = multiple credits)
-    private final HashMap<Integer, Integer> castCreditCount;
 
     // N-gram string search indexes, keyed by person ID (not Person object)
     // so stale entries after remove() are safely filtered via the person maps
-    private final StringSearchIndex<Integer> castSearchIndex;
-    private final StringSearchIndex<Integer> crewSearchIndex;
+    private final StringSearchIndex<Integer> castSearchIndex = new StringSearchIndex<>();
+    private final StringSearchIndex<Integer> crewSearchIndex = new StringSearchIndex<>();
 
     /**
      * The constructor for the Credits data store. This is where you should
@@ -47,16 +38,6 @@ public class Credits implements ICredits{
     public Credits (Stores stores) {
         this.stores = stores;
         // TODO Add initialisation of data structure here
-        filmCastMap       = new HashMap<>();
-        filmCrewMap       = new HashMap<>();
-        castPersonMap     = new HashMap<>();
-        crewPersonMap     = new HashMap<>();
-        castFilmsMap      = new HashMap<>();
-        crewFilmsMap      = new HashMap<>();
-        castStarsFilmsMap = new HashMap<>();
-        castCreditCount   = new HashMap<>();
-        castSearchIndex   = new StringSearchIndex<>();
-        crewSearchIndex   = new StringSearchIndex<>();
     }
 
     /**
@@ -70,76 +51,39 @@ public class Credits implements ICredits{
      */
     @Override
     public boolean add(CastCredit[] cast, CrewCredit[] crew, int id) {
-        if (filmCastMap.containsKey(id)) return false;
+        if (filmCredits.containsKey(id)) return false;
 
         // --- Cast: sort by order, store ---
         CastCredit[] sortedCast = cast.clone();
         MergeSort.sort(sortedCast, Comparator.comparingInt(CastCredit::getOrder));
-        filmCastMap.put(id, sortedCast);
 
-        HashMap<Integer, Integer> castMinOrder = new HashMap<>();
-        for (CastCredit cc : cast) {
-            int castID = cc.getID();
-
-            if (!castPersonMap.containsKey(castID)) {
-                castPersonMap.put(castID, new Person(castID, cc.getName(), cc.getProfilePath()));
-                castSearchIndex.add(castID, cc.getName());
-            }
-
-            // merge(castID, 1, Integer::sum)
-            Integer count = castCreditCount.get(castID);
-            castCreditCount.put(castID, count == null ? 1 : count + 1);
-
-            // merge(castID, cc.getOrder(), Math::min)
-            Integer existingMin = castMinOrder.get(castID);
-            if (existingMin == null || cc.getOrder() < existingMin) {
-                castMinOrder.put(castID, cc.getOrder());
-            }
-        }
-
-        for (Map.Entry<Integer, Integer> entry : castMinOrder.entrySet()) {
-            int castID = entry.getKey();
-
-            // computeIfAbsent(castID, k -> new ArrayList<>()).add(id)
-            ArrayList<Integer> films = castFilmsMap.get(castID);
-            if (films == null) {
-                films = new ArrayList<>();
-                castFilmsMap.put(castID, films);
-            }
-            films.add(id);
-
-            if (entry.getValue() <= 3) {
-                ArrayList<Integer> starFilms = castStarsFilmsMap.get(castID);
-                if (starFilms == null) {
-                    starFilms = new ArrayList<>();
-                    castStarsFilmsMap.put(castID, starFilms);
-                }
-                starFilms.add(id);
-            }
-        }
-
-        // --- Crew: sort by id, store ---
         CrewCredit[] sortedCrew = crew.clone();
         MergeSort.sort(sortedCrew, Comparator.comparingInt(CrewCredit::getID));
-        filmCrewMap.put(id, sortedCrew);
 
-        HashSet<Integer> seenCrew = new HashSet<>();
+        filmCredits.put(id, new FilmCredits(sortedCast, sortedCrew));
+
+        for (CastCredit cc : sortedCast) {
+            int castID = cc.getID();
+
+            if (!castMap.containsKey(castID)) {
+                castMap.put(castID, new Cast(new Person(castID, cc.getName(), cc.getProfilePath()), id, cc.getOrder()));
+                castSearchIndex.add(castID, cc.getName());
+            } else {
+                Cast castMember = castMap.get(castID);
+                castMember.incrementCredit();
+                castMember.addFilm(id, cc.getOrder());
+            }
+        }
+
         for (CrewCredit cc : crew) {
             int crewID = cc.getID();
 
-            if (!crewPersonMap.containsKey(crewID)) {
-                crewPersonMap.put(crewID, new Person(crewID, cc.getName(), cc.getProfilePath()));
+            if (!crewMap.containsKey(crewID)) {
+                crewMap.put(crewID, new Crew(new Person(crewID, cc.getName(), cc.getProfilePath()), id));
                 crewSearchIndex.add(crewID, cc.getName());
-            }
-
-            if (seenCrew.add(crewID)) {
-                // computeIfAbsent(crewID, k -> new ArrayList<>()).add(id)
-                ArrayList<Integer> films = crewFilmsMap.get(crewID);
-                if (films == null) {
-                    films = new ArrayList<>();
-                    crewFilmsMap.put(crewID, films);
-                }
-                films.add(id);
+            } else {
+                Crew crewMember = crewMap.get(crewID);
+                crewMember.addFilm(id);
             }
         }
 
@@ -154,59 +98,32 @@ public class Credits implements ICredits{
      */
     @Override
     public boolean remove(int id) {
-        CastCredit[] cast = filmCastMap.remove(id);
-        if (cast == null) return false;
-        CrewCredit[] crew = filmCrewMap.remove(id);
+        FilmCredits credits = filmCredits.remove(id);
+        if (credits == null) return false;
 
         // --- Cast cleanup ---
-        // Decrement credit count once per CastCredit entry (covers multiple roles)
-        for (CastCredit cc : cast) {
+        for (CastCredit cc : credits.getCast()) {
             int castID = cc.getID();
-            Integer count = castCreditCount.get(castID);
-            if (count != null) {
-                castCreditCount.put(castID, count - 1);
-            }
-        }
+            Cast castMember = castMap.get(castID);
 
-        HashSet<Integer> processedCast = new HashSet<>();
-        for (CastCredit cc : cast) {
-            int castID = cc.getID();
-            if (!processedCast.add(castID)) continue;
-
-            ArrayList<Integer> films = castFilmsMap.get(castID);
-            if (films != null) {
-                films.remove(Integer.valueOf(id));
-                if (films.isEmpty()) {
-                    castFilmsMap.remove(castID);
-                    castPersonMap.remove(castID);
-                    castCreditCount.remove(castID);
-                    castSearchIndex.remove(castID);
-                }
-            }
-
-            ArrayList<Integer> starFilms = castStarsFilmsMap.get(castID);
-            if (starFilms != null) {
-                starFilms.remove(Integer.valueOf(id));
-                if (starFilms.isEmpty()) castStarsFilmsMap.remove(castID);
+            castMember.removeFilm(id);
+            if (castMember.filmsIsEmpty()) {
+                castMap.remove(castID);
+                castSearchIndex.remove(castID);
+            } else {
+                castMember.decrementCredit();
             }
         }
 
         // --- Crew cleanup ---
-        if (crew != null) {
-            HashSet<Integer> processedCrew = new HashSet<>();
-            for (CrewCredit cc : crew) {
-                int crewID = cc.getID();
-                if (!processedCrew.add(crewID)) continue;
+        for (CrewCredit cc : credits.getCrew()) {
+            int crewID = cc.getID();
 
-                ArrayList<Integer> films = crewFilmsMap.get(crewID);
-                if (films != null) {
-                    films.remove(Integer.valueOf(id));
-                    if (films.isEmpty()) {
-                        crewFilmsMap.remove(crewID);
-                        crewPersonMap.remove(crewID);
-                        crewSearchIndex.remove(crewID);
-                    }
-                }
+            Crew crewMember = crewMap.get(crewID);
+            crewMember.removeFilm(id);
+            if (crewMember.filmsIsEmpty()) {
+                crewMap.remove(crewID);
+                crewSearchIndex.remove(crewID);
             }
         }
 
@@ -224,8 +141,9 @@ public class Credits implements ICredits{
      */
     @Override
     public CastCredit[] getFilmCast(int filmID) {
-        CastCredit[] cast = filmCastMap.get(filmID);
-        return (cast != null) ? cast : new CastCredit[0];    }
+        FilmCredits credits = filmCredits.get(filmID);
+        return (credits != null) ? credits.getCast() : new CastCredit[0];
+    }
 
     /**
      * Gets all the crew members for a given film
@@ -238,8 +156,9 @@ public class Credits implements ICredits{
      */
     @Override
     public CrewCredit[] getFilmCrew(int filmID) {
-        CrewCredit[] crew = filmCrewMap.get(filmID);
-        return (crew != null) ? crew : new CrewCredit[0];    }
+        FilmCredits credits = filmCredits.get(filmID);
+        return (credits != null) ? credits.getCrew() : new CrewCredit[0];
+    }
 
     /**
      * Gets the number of cast that worked on a given film
@@ -250,8 +169,8 @@ public class Credits implements ICredits{
      */
     @Override
     public int sizeOfCast(int filmID) {
-        CastCredit[] cast = filmCastMap.get(filmID);
-        return (cast != null) ? cast.length : -1;
+        FilmCredits credits = filmCredits.get(filmID);
+        return (credits != null) ? credits.getCast().length : -1;
     }
 
     /**
@@ -263,8 +182,8 @@ public class Credits implements ICredits{
      */
     @Override
     public int sizeOfCrew(int filmID) {
-        CrewCredit[] crew = filmCrewMap.get(filmID);
-        return (crew != null) ? crew.length : -1;
+        FilmCredits credits = filmCredits.get(filmID);
+        return (credits != null) ? credits.getCrew().length : -1;
     }
 
     /**
@@ -275,10 +194,8 @@ public class Credits implements ICredits{
      */
     @Override
     public Person[] getUniqueCast() {
-        if (castPersonMap.size() == 0) return new Person[0];
-        return Arrays.stream(castPersonMap.valueSet().toArray())
-                .map(o -> (Person) o)
-                .toArray(Person[]::new);
+        if (castMap.size() == 0) return new Person[0];
+        return castMap.valueSet().toArray(Person.class, Cast::getPerson);
     }
 
     /**
@@ -289,10 +206,8 @@ public class Credits implements ICredits{
      */
     @Override
     public Person[] getUniqueCrew() {
-        if (crewPersonMap.size() == 0) return new Person[0];
-        return Arrays.stream(crewPersonMap.valueSet().toArray())
-                .map(o -> (Person) o)
-                .toArray(Person[]::new);
+        if (crewMap.size() == 0) return new Person[0];
+        return crewMap.valueSet().toArray(Person.class, Crew::getPerson);
     }
 
     /**
@@ -309,8 +224,10 @@ public class Credits implements ICredits{
         Person[] result = new Person[ids.size()];
         int i = 0;
         for (int castID : ids) {
-            Person p = castPersonMap.get(castID);
-            if (p != null) result[i++] = p;
+            Person p = castMap.get(castID).getPerson();
+            if (p != null) {
+                result[i++] = p;
+            }
         }
         return result;
     }
@@ -329,7 +246,7 @@ public class Credits implements ICredits{
         Person[] result = new Person[ids.size()];
         int i = 0;
         for (int crewID : ids) {
-            Person p = crewPersonMap.get(crewID);
+            Person p = crewMap.get(crewID).getPerson();
             if (p != null) result[i++] = p;
         }
         return result;
@@ -344,7 +261,8 @@ public class Credits implements ICredits{
      */
     @Override
     public Person getCast(int castID) {
-        return castPersonMap.get(castID);
+        Cast cast = castMap.get(castID);
+        return cast != null ? cast.getPerson() : null;
     }
 
     /**
@@ -356,7 +274,8 @@ public class Credits implements ICredits{
      */
     @Override
     public Person getCrew(int crewID){
-        return crewPersonMap.get(crewID);
+        Crew crew = crewMap.get(crewID);
+        return crew != null ? crew.getPerson() : null;
     }
 
     
@@ -370,11 +289,8 @@ public class Credits implements ICredits{
      */
     @Override
     public int[] getCastFilms(int castID){
-        ArrayList<Integer> films = castFilmsMap.get(castID);
-        if (films == null || films.isEmpty()) return new int[0];
-        int[] result = new int[films.size()];
-        for (int i = 0; i < films.size(); i++) result[i] = films.get(i);
-        return result;
+        Cast cast = castMap.get(castID);
+        return cast != null ? cast.getFilms() : new int[0];
     }
 
     /**
@@ -387,11 +303,8 @@ public class Credits implements ICredits{
      */
     @Override
     public int[] getCrewFilms(int crewID) {
-        ArrayList<Integer> films = crewFilmsMap.get(crewID);
-        if (films == null || films.isEmpty()) return new int[0];
-        int[] result = new int[films.size()];
-        for (int i = 0; i < films.size(); i++) result[i] = films.get(i);
-        return result;
+        Crew crew = crewMap.get(crewID);
+        return crew != null ? crew.getFilms() : new int[0];
     }
 
     /**
@@ -406,11 +319,8 @@ public class Credits implements ICredits{
      */
     @Override
     public int[] getCastStarsInFilms(int castID){
-        ArrayList<Integer> films = castStarsFilmsMap.get(castID);
-        if (films == null || films.isEmpty()) return new int[0];
-        int[] result = new int[films.size()];
-        for (int i = 0; i < films.size(); i++) result[i] = films.get(i);
-        return result;
+        Cast cast = castMap.get(castID);
+        return cast != null ? cast.getStarsInFilms() : new int[0];
     }
     
     /**
@@ -445,7 +355,7 @@ public class Credits implements ICredits{
 
         Person[] result = new Person[minHeap.size()];
         for (int i = result.length - 1; i >= 0; i--) {
-            result[i] = castPersonMap.get(minHeap.remove().getKey());
+            result[i] = castMap.get(minHeap.remove().getKey()).getPerson();
         }
         return result;
     }
@@ -462,8 +372,12 @@ public class Credits implements ICredits{
      */
     @Override
     public int getNumCastCredits(int castID) {
-        Integer count = castCreditCount.get(castID);
-        return count != null ? count : -1;
+        var cast = castMap.get(castID);
+        if (cast != null) {
+            return cast.getCreditCount();
+        }
+
+        return -1;
     }
 
     /**
@@ -473,6 +387,6 @@ public class Credits implements ICredits{
      */
     @Override
     public int size() {
-        return filmCastMap.size();
+        return filmCredits.size();
     }
 }

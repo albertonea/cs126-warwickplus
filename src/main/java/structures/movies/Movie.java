@@ -2,10 +2,10 @@ package structures.movies;
 
 import stores.Company;
 import stores.Genre;
+import structures.data.LinkedList;
+import structures.data.interfaces.List;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Movie {
     private int id;
@@ -18,8 +18,9 @@ public class Movie {
     private double runtime, voteAverage, popularity;
     private int voteCount;
     private boolean adult, video;
-    private List<Company> productionCompanies = new ArrayList<>();
-    private List<String> productionCountries = new ArrayList<>();
+    private List<Company> productionCompanies = new LinkedList<>();
+    private List<String> productionCountries = new LinkedList<>();
+    private int collectionId = -1;
 
     public Movie(String title, String originalTitle, String overview,
             String tagline, String status, Genre[] genres, LocalDate release, long budget,
@@ -159,5 +160,13 @@ public class Movie {
     public boolean setPopularity(double popularity) {
         this.popularity = popularity;
         return true;
+    }
+
+    public void setCollectionId(int id) {
+        this.collectionId = id;
+    }
+
+    public int getCollectionId() {
+        return collectionId;
     }
 }

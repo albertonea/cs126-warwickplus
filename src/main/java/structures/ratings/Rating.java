@@ -1,5 +1,8 @@
 package structures.ratings;
 
+import structures.data.HashMap;
+import structures.data.interfaces.Map;
+
 import java.time.LocalDateTime;
 
 public class Rating {

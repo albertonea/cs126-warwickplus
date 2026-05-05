@@ -3,8 +3,11 @@ package structures.data;
 import structures.data.interfaces.Collection;
 import structures.data.interfaces.Queue;
 
+import java.lang.reflect.Array;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 public class PriorityQueue<E> implements Queue<E> {
     int length = 16;
@@ -124,13 +127,25 @@ public class PriorityQueue<E> implements Queue<E> {
         return size;
     }
 
-    public Object[] toArray() {
-        Object[] arr = new Object[size];
+    public E[] toArray(Class<E> type) {
+        @SuppressWarnings("unchecked")
+        E[] arr =  (E[]) Array.newInstance(type, size);
+
         for (int i = 0; i < size; i++) {
-            arr[i] = heap[i];
+            arr[i] = (E) heap[i];
         }
 
         return arr;
+    }
+
+    @Override
+    public int[] toIntArray(ToIntFunction<? super E> mapper) {
+        return new int[0];
+    }
+
+    @Override
+    public <T> T[] toArray(Class<T> type, Function<? super E, ? extends T> mapper) {
+        return null;
     }
 
     public Iterator<E> iterator() {
