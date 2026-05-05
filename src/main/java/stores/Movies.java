@@ -13,15 +13,15 @@ import structures.movies.MovieCollection;
 
 public class Movies implements IMovies {
     Stores stores;
-    private int INITIAL_CAPACITY = 3000;
+    private final int INITIAL_CAPACITY = 3000;
 
-    int size = 0;
+    private int size = 0;
 
-    private Map<Integer, Movie> movies = new HashMap<>(INITIAL_CAPACITY);
-    private Map<Integer, MovieCollection> collections = new HashMap<>(INITIAL_CAPACITY);
+    private final Map<Integer, Movie> movies = new HashMap<>(INITIAL_CAPACITY);
+    private final Map<Integer, MovieCollection> collections = new HashMap<>(INITIAL_CAPACITY);
 
-    private SetSkipList<LocalDate, Integer> dateIndex = new SetSkipList<>();
-    private StringSearchIndex<Integer> searchIndex = new StringSearchIndex<>();
+    private final SetSkipList<LocalDate, Integer> dateIndex = new SetSkipList<>();
+    private final StringSearchIndex<Integer> searchIndex = new StringSearchIndex<>();
 
     /**
      * The constructor for the Movies data store. This is where you should

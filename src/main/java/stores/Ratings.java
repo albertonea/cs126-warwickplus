@@ -13,13 +13,13 @@ import structures.ratings.RatingWrapper;
 public class Ratings implements IRatings {
     Stores stores;
 
-    int INITIAL_CAPACITY = 3000;
-    int size = 0;
+    private final int INITIAL_CAPACITY = 3000;
+    private int size = 0;
 //     Hashmap user -> ratings for movieId
-    Map<Integer, RatingWrapper> userIndex = new HashMap<>(INITIAL_CAPACITY);
+    private final Map<Integer, RatingWrapper> userIndex = new HashMap<>(INITIAL_CAPACITY);
 
 //     Hashmap movie -> ratings for userId
-    Map<Integer, RatingWrapper> movieIndex = new HashMap<>(INITIAL_CAPACITY);
+    private final Map<Integer, RatingWrapper> movieIndex = new HashMap<>(INITIAL_CAPACITY);
     // priority queue with a min-heap for the implementation
 
     /**

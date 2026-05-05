@@ -338,26 +338,17 @@ public class Credits implements ICredits{
      */
     @Override
     public Person[] getMostCastCredits(int numResults) {
-        if (castCreditCount.size() == 0) return new Person[0];
-        int limit = Math.min(numResults, castCreditCount.size());
-
-        PriorityQueue<Map.Entry<Integer, Integer>> minHeap =
-                new PriorityQueue<>(limit, Comparator.comparingInt(Map.Entry::getValue));
-
-        for (Map.Entry<Integer, Integer> entry : castCreditCount.entrySet()) {
-            if (minHeap.size() < limit) {
-                minHeap.add(entry);
-            } else if (entry.getValue() > minHeap.peek().getValue()) {
-                minHeap.remove();
-                minHeap.add(entry);
-            }
+        if (numResults <= 0 || castMap.size() == 0) {
+            return new Person[0];
         }
 
-        Person[] result = new Person[minHeap.size()];
-        for (int i = result.length - 1; i >= 0; i--) {
-            result[i] = castMap.get(minHeap.remove().getKey()).getPerson();
-        }
-        return result;
+        Cast[] casts = castMap.valueSet().toArray(Cast.class);
+
+        TopK<Cast> topK = new TopK<>(
+                Comparator.comparingInt(Cast::getCreditCount).reversed()
+        );
+
+        return topK.topK(casts, numResults, Cast::getPerson, Person[]::new);
     }
 
     /**
