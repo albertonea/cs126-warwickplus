@@ -13,14 +13,16 @@ import java.util.Comparator;
 public class Credits implements ICredits{
     Stores stores;
 
+    private final int INITIAL_CAPACITY = 3000;
+
     // Film-centric: pre-sorted for O(1) retrieval
-    private final HashMap<Integer, FilmCredits> filmCredits = new HashMap<>();
+    private final HashMap<Integer, FilmCredits> filmCredits = new HashMap<>(INITIAL_CAPACITY);
 
     // Cast lookup by ID
-    private final HashMap<Integer, Cast> castMap = new HashMap<>();
+    private final HashMap<Integer, Cast> castMap = new HashMap<>(INITIAL_CAPACITY * 3);
 
     // Crew lookup by ID
-    private final HashMap<Integer, Crew> crewMap = new HashMap<>();
+    private final HashMap<Integer, Crew> crewMap = new HashMap<>(INITIAL_CAPACITY * 3);
 
 
     // N-gram string search indexes, keyed by person ID (not Person object)
