@@ -100,8 +100,8 @@ public class TopK<E> {
     }
 
     /**
-     * Partial quicksort that only recurses into partitions overlapping the
-     * target prefix {@code [0, targetIdx]}
+     * Partial quicksort that only recurses into partitions less than
+     * the taget index {@code [0, targetIdx]}
      *
      * @param arr the working buffer
      * @param from inclusive low index of the current partition
