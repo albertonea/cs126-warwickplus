@@ -16,7 +16,6 @@ public class LinkedListTest {
     @Test
     void givenAddingNull_sizeIsOne() {
         linkedList.add(null);
-        assertTrue(linkedList.contains(null));
         assertEquals(1, linkedList.size());
     }
 

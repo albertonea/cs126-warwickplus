@@ -10,7 +10,7 @@ public class MergeSortTest {
     void arraySortedAscending() {
         Integer[] arr = new Integer[]{38, 27, 43, 10, 100, 350, 700, 900};
 
-        MergeSort.sort(arr, 0, arr.length, Comparator.comparingInt(a -> a));
+        MergeSort.sort(arr, Comparator.comparingInt(a -> a));
         for (int i:arr) {
             System.out.println(i);
         }

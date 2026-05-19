@@ -13,14 +13,22 @@ import structures.movies.MovieCollection;
 
 public class Movies implements IMovies {
     Stores stores;
-    private final int INITIAL_CAPACITY = 3000;
+    // Capacity chosen from the test movie counts so the hash
+    // maps don't resize too many times while loading entries
+    private final int EXPECTED_MOVIES = 4096;
+    private final int EXPECTED_COLLECTIONS = 256;
 
-    private int size = 0;
+    // film id -> Movie map. Holds every film loaded by the
+    // application and is the entry point for every per-film accessor.
+    private final Map<Integer, Movie> movies = new HashMap<>(EXPECTED_MOVIES);
+    // collection id -> MovieCollection map. Each Movie also
+    // stores its own collection id so navigating either direction is O(1).
+    private final Map<Integer, MovieCollection> collections = new HashMap<>(EXPECTED_COLLECTIONS);
 
-    private final Map<Integer, Movie> movies = new HashMap<>(INITIAL_CAPACITY);
-    private final Map<Integer, MovieCollection> collections = new HashMap<>(INITIAL_CAPACITY);
-
+    // Ordered index on release date used to answer release date queries
+    // without scanning every film.
     private final SetSkipList<LocalDate, Integer> dateIndex = new SetSkipList<>();
+    // Trigram search index over (title + overview + originalTitle).
     private final StringSearchIndex<Integer> searchIndex = new StringSearchIndex<>();
 
     /**
@@ -32,7 +40,6 @@ public class Movies implements IMovies {
      */
     public Movies(Stores stores) {
         this.stores = stores;
-        // TODO Add initialisation of data structure here
     }
 
     /**
@@ -79,6 +86,7 @@ public class Movies implements IMovies {
             boolean video,
             String poster) {
 
+        // Reject duplicate ids
         if (movies.containsKey(id)) {
             return false;
         }
@@ -88,19 +96,22 @@ public class Movies implements IMovies {
 
         movies.put(id, movie);
 
+        // Only index films whose release date is known
         if (release != null) {
             dateIndex.put(release, id);
         }
 
+        // Build a single haystack string from the three searchable fields so a
+        // query hits any of them. The '' acts as a field separator to
+        // avoid accidental matches.
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(title);
-        stringBuilder.append(" ");
+        stringBuilder.append("");
         stringBuilder.append(overview);
-        stringBuilder.append(" ");
+        stringBuilder.append("");
         stringBuilder.append(originalTitle);
         searchIndex.add(id, stringBuilder.toString());
 
-        this.size++;
         return true;
     }
 
@@ -113,19 +124,23 @@ public class Movies implements IMovies {
      */
     @Override
     public boolean remove(int id) {
+        // Check if film id is present
         if (!movies.containsKey(id)) {
             return false;
         }
 
         Movie movie = movies.remove(id);
-        dateIndex.remove(movie.getRelease(), id);
-        searchIndex.remove(movie.getId());
+        // Delete the film from every index that referenced it
+        if (movie.getRelease() != null) {
+            dateIndex.remove(movie.getRelease(), id);
+        }
+        searchIndex.remove(id);
+        // Remove film from collection if it was part of one
         if (movie.getCollectionId() != -1) {
             MovieCollection collection = collections.get(movie.getCollectionId());
             collection.removeFilm(id);
         }
 
-        size--;
         return true;
     }
 
@@ -136,14 +151,8 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] getAllIDs() {
-        var keys = movies.keySet();
-        int[] ids = new int[keys.size()];
-        int i = 0;
-        for (var key: keys) {
-            ids[i++] = key;
-        }
-
-        return ids;
+        // Unbox all the indexed Integer ids to int[]
+        return movies.keyList().toIntArray(Integer::intValue);
     }
 
     /**
@@ -157,15 +166,10 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] getAllIDsReleasedInRange(LocalDate start, LocalDate end) {
+        // Get movies in range and unbox Integers
         List<Integer> list = dateIndex.getRange(start, end);
-        int[] ids = new int[list.size()];
 
-        int idx = 0;
-        for (Integer i: list) {
-            ids[idx++] = i;
-        }
-
-        return ids;
+        return list.toIntArray(Integer::intValue);
     }
 
     /**
@@ -457,7 +461,10 @@ public class Movies implements IMovies {
     @Override
     public boolean setVote(int id, double voteAverage, int voteCount) {
         Movie movie = movies.get(id);
-        if (movie == null) return false;
+        if (movie == null) {
+            return false;
+        }
+
         return movie.setVote(voteAverage, voteCount);
     }
 
@@ -513,12 +520,15 @@ public class Movies implements IMovies {
     @Override
     public boolean addToCollection(int filmID, int collectionID, String collectionName, String collectionPosterPath, String collectionBackdropPath) {
         Movie movie = movies.get(filmID);
+        // Check if film exists
         if (movie == null) {
             return false;
         }
 
         MovieCollection collection = collections.get(collectionID);
 
+        // New collection id: create the collection seeded
+        // with this film. Otherwise just append the film to the existing one.
         if (collection == null) {
             MovieCollection newCollection = new MovieCollection(collectionName, collectionPosterPath, collectionBackdropPath, filmID);
             collections.put(collectionID, newCollection);
@@ -526,6 +536,7 @@ public class Movies implements IMovies {
             collection.addFilm(filmID);
         }
 
+        // Add the collection id on the Movie so we can navigate either way
         movie.setCollectionId(collectionID);
         return true;
     }
@@ -725,6 +736,7 @@ public class Movies implements IMovies {
         if (movie == null) {
             return null;
         }
+        // Map production companies list to Company[]
         return movie.getProductionCompanies().toArray(Company.class);
     }
 
@@ -742,6 +754,8 @@ public class Movies implements IMovies {
         if (movie == null) {
             return null;
         }
+
+        // Map production countries list to String[]
         return movie.getProductionCountries().toArray(String.class);
     }
 
@@ -752,7 +766,7 @@ public class Movies implements IMovies {
      */
     @Override
     public int size() {
-        return this.size;
+        return movies.size();
     }
 
     /**
@@ -766,14 +780,8 @@ public class Movies implements IMovies {
      */
     @Override
     public int[] findFilms(String searchTerm) {
+        // Query to the search index and unbox the result
         List<Integer> films = searchIndex.search(searchTerm);
-        int[] result = new int[films.size()];
-        int i = 0;
-
-        for (Integer film:films) {
-            result[i++] = film;
-        }
-
-        return result;
+        return films.toIntArray(Integer::intValue);
     }
 }

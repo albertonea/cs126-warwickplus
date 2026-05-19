@@ -4,29 +4,34 @@ import interfaces.ICredits;
 import structures.credits.Cast;
 import structures.credits.Crew;
 import structures.credits.FilmCredits;
-import structures.data.*;
+import structures.data.HashMap;
+import structures.data.MergeSort;
+import structures.data.StringSearchIndex;
+import structures.data.TopK;
 import structures.data.interfaces.List;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 
 public class Credits implements ICredits{
     Stores stores;
 
-    private final int INITIAL_CAPACITY = 3000;
+    // Capacity chosen from the test cast/crew counts so the hash
+    // maps don't resize too many times while loading entries
+    private final static int EXPECTED_CREDITS = 8192;
+    private final static int EXPECTED_CAST = 16384;
+    private final static int EXPECTED_CREW = 8192;
 
-    // Film-centric: pre-sorted for O(1) retrieval
-    private final HashMap<Integer, FilmCredits> filmCredits = new HashMap<>(INITIAL_CAPACITY);
+    // film id -> FilmCredits which contains cast/crew arrays for that film. Sorted once on insert
+    // so per-film accessors can return the array directly
+    private final HashMap<Integer, FilmCredits> filmCredits = new HashMap<>(EXPECTED_CREDITS);
 
-    // Cast lookup by ID
-    private final HashMap<Integer, Cast> castMap = new HashMap<>(INITIAL_CAPACITY * 3);
+    // cast id -> Cast containing (films, starring films, credit count)
+    private final HashMap<Integer, Cast> castMap = new HashMap<>(EXPECTED_CAST);
+    // crew id -> Crew containing (films only - simpler than cast)
+    private final HashMap<Integer, Crew> crewMap = new HashMap<>(EXPECTED_CREW);
 
-    // Crew lookup by ID
-    private final HashMap<Integer, Crew> crewMap = new HashMap<>(INITIAL_CAPACITY * 3);
 
-
-    // N-gram string search indexes, keyed by person ID (not Person object)
-    // so stale entries after remove() are safely filtered via the person maps
+    // Trigram search indexes over names
     private final StringSearchIndex<Integer> castSearchIndex = new StringSearchIndex<>();
     private final StringSearchIndex<Integer> crewSearchIndex = new StringSearchIndex<>();
 
@@ -39,7 +44,6 @@ public class Credits implements ICredits{
      */
     public Credits (Stores stores) {
         this.stores = stores;
-        // TODO Add initialisation of data structure here
     }
 
     /**
@@ -53,37 +57,47 @@ public class Credits implements ICredits{
      */
     @Override
     public boolean add(CastCredit[] cast, CrewCredit[] crew, int id) {
+        // Reject duplicates to avoid overwriting an existing film
         if (filmCredits.containsKey(id)) return false;
 
-        // --- Cast: sort by order, store ---
+        // Clone before sorting so callers array is not mutated
+        // Sorting by `order` means getFilmCast() can return as-is later
         CastCredit[] sortedCast = cast.clone();
         MergeSort.sort(sortedCast, Comparator.comparingInt(CastCredit::getOrder));
 
+        // Crew is sorted by id per the spec, so getFilmCrew()
+        // can also return the stored array directly
         CrewCredit[] sortedCrew = crew.clone();
         MergeSort.sort(sortedCrew, Comparator.comparingInt(CrewCredit::getID));
 
         filmCredits.put(id, new FilmCredits(sortedCast, sortedCrew));
 
+        // Iterate over all cast credits
         for (CastCredit cc : sortedCast) {
             int castID = cc.getID();
 
             if (!castMap.containsKey(castID)) {
+                // New cast gets added to castMap and search index
                 castMap.put(castID, new Cast(new Person(castID, cc.getName(), cc.getProfilePath()), id, cc.getOrder()));
                 castSearchIndex.add(castID, cc.getName());
             } else {
+                // Cast exists in castMap, increment credit counter and add film
                 Cast castMember = castMap.get(castID);
                 castMember.incrementCredit();
                 castMember.addFilm(id, cc.getOrder());
             }
         }
 
+        // Iterate over crew credits
         for (CrewCredit cc : crew) {
             int crewID = cc.getID();
 
             if (!crewMap.containsKey(crewID)) {
+                // New crew gets added to crewMap and search index
                 crewMap.put(crewID, new Crew(new Person(crewID, cc.getName(), cc.getProfilePath()), id));
                 crewSearchIndex.add(crewID, cc.getName());
             } else {
+                // Existing crew, add film
                 Crew crewMember = crewMap.get(crewID);
                 crewMember.addFilm(id);
             }
@@ -100,10 +114,14 @@ public class Credits implements ICredits{
      */
     @Override
     public boolean remove(int id) {
+        // Remove the film from film credits map
         FilmCredits credits = filmCredits.remove(id);
+        // If film did not exist exit early
         if (credits == null) return false;
 
-        // --- Cast cleanup ---
+        // Walk every cast credit on the film and remove the film
+        // If the person ends up with no remaining films, delete the
+        // cast entry and its name from the search index
         for (CastCredit cc : credits.getCast()) {
             int castID = cc.getID();
             Cast castMember = castMap.get(castID);
@@ -117,7 +135,7 @@ public class Credits implements ICredits{
             }
         }
 
-        // --- Crew cleanup ---
+        // Same shape as cast cleanup, but Crew doesn't track a credit count
         for (CrewCredit cc : credits.getCrew()) {
             int crewID = cc.getID();
 
@@ -197,7 +215,8 @@ public class Credits implements ICredits{
     @Override
     public Person[] getUniqueCast() {
         if (castMap.size() == 0) return new Person[0];
-        return castMap.valueSet().toArray(Person.class, Cast::getPerson);
+        // Map the value list of the cast map to a Person array
+        return castMap.valueList().toArray(Person.class, Cast::getPerson);
     }
 
     /**
@@ -209,7 +228,8 @@ public class Credits implements ICredits{
     @Override
     public Person[] getUniqueCrew() {
         if (crewMap.size() == 0) return new Person[0];
-        return crewMap.valueSet().toArray(Person.class, Crew::getPerson);
+        // Map the value list of the crew map to a Person array
+        return crewMap.valueList().toArray(Person.class, Crew::getPerson);
     }
 
     /**
@@ -222,11 +242,13 @@ public class Credits implements ICredits{
      */
     @Override
     public Person[] findCast(String cast) {
-        List<Integer> ids = castSearchIndex.search(cast);
-        Person[] result = new Person[ids.size()];
+        // Query the search index for cast ids and get each
+        // Person through the cast map
+        List<Integer> results = castSearchIndex.search(cast);
+        Person[] result = new Person[results.size()];
         int i = 0;
-        for (int castID : ids) {
-            Person p = castMap.get(castID).getPerson();
+        for (int castId : results) {
+            Person p = castMap.get(castId).getPerson();
             if (p != null) {
                 result[i++] = p;
             }
@@ -244,6 +266,8 @@ public class Credits implements ICredits{
      */
     @Override
     public Person[] findCrew(String crew) {
+        // Query the search index for crew ids and get each
+        // Person through the crew map
         List<Integer> ids = crewSearchIndex.search(crew);
         Person[] result = new Person[ids.size()];
         int i = 0;
@@ -340,16 +364,20 @@ public class Credits implements ICredits{
      */
     @Override
     public Person[] getMostCastCredits(int numResults) {
+        // Check if there are entries in cast map
         if (numResults <= 0 || castMap.size() == 0) {
             return new Person[0];
         }
 
-        Cast[] casts = castMap.valueSet().toArray(Cast.class);
+        // Get every Cast into an array so topK can mutate freely
+        Cast[] casts = castMap.valueList().toArray(Cast.class);
 
+        // Initialise topK with a reversed comparator for highest credit count first
         TopK<Cast> topK = new TopK<>(
                 Comparator.comparingInt(Cast::getCreditCount).reversed()
         );
 
+        // Map Cast to Person while extracting so callers get Person[]
         return topK.topK(casts, numResults, Cast::getPerson, Person[]::new);
     }
 

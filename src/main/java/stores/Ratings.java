@@ -13,14 +13,16 @@ import structures.ratings.RatingWrapper;
 public class Ratings implements IRatings {
     Stores stores;
 
-    private final int INITIAL_CAPACITY = 3000;
+    // Capacity chosen from the test rating counts so the hash
+    // maps don't resize too many times while loading entries
+    private final int EXPECTED_RATINGS = 8192;
+    // Total ratings stored
     private int size = 0;
-//     Hashmap user -> ratings for movieId
-    private final Map<Integer, RatingWrapper> userIndex = new HashMap<>(INITIAL_CAPACITY);
+    // user id -> wrapper keyed by movie id. Optimised for per-user queries
+    private final Map<Integer, RatingWrapper> userIndex = new HashMap<>(EXPECTED_RATINGS);
 
-//     Hashmap movie -> ratings for userId
-    private final Map<Integer, RatingWrapper> movieIndex = new HashMap<>(INITIAL_CAPACITY);
-    // priority queue with a min-heap for the implementation
+    // movie id -> wrapper keyed by user id. Optimised for per-movie queries
+    private final Map<Integer, RatingWrapper> movieIndex = new HashMap<>(EXPECTED_RATINGS);
 
     /**
      * The constructor for the Ratings data store. This is where you should
@@ -30,7 +32,6 @@ public class Ratings implements IRatings {
      */
     public Ratings(Stores stores) {
         this.stores = stores;
-        // TODO Add initialisation of data structure here
     }
 
     /**
@@ -48,10 +49,13 @@ public class Ratings implements IRatings {
     public boolean add(int userid, int movieid, float rating, LocalDateTime timestamp) {
         RatingWrapper userRatings = userIndex.get(userid);
         RatingWrapper movieRatings = movieIndex.get(movieid);
+        // Check if entry exists
         if (userRatings != null && userRatings.get(movieid) != null) {
             return false;
         }
 
+        // Update each index: create a fresh wrapper on the
+        // first sighting of the key, otherwise extend the existing one
         if (userRatings != null) {
             userRatings.put(movieid, rating, timestamp);
         } else {
@@ -64,6 +68,7 @@ public class Ratings implements IRatings {
             movieIndex.put(movieid, new RatingWrapper(userid, rating, timestamp));
         }
 
+        // Increment number of ratings stored
         size++;
 
         return true;
@@ -82,17 +87,23 @@ public class Ratings implements IRatings {
         RatingWrapper userRatings = userIndex.get(userid);
         RatingWrapper movieRatings = movieIndex.get(movieid);
 
+        // Check if entry exists
         if (movieRatings != null && movieRatings.get(userid) != null) {
+            // Remove the entry from the user index, and remove the wrapper
+            // entirely if the user no longer has any ratings.
             userRatings.remove(movieid);
             if (userRatings.size() == 0) {
                 userIndex.remove(userid);
             }
 
+            // Remove the entry from the user index, and remove the wrapper
+            // entirely if the user no longer has any ratings.
             movieRatings.remove(userid);
             if (movieRatings.size() == 0) {
                 movieIndex.remove(movieid);
             }
 
+            // Decrement number of ratings stored
             size--;
             return true;
         }
@@ -115,21 +126,26 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean set(int userid, int movieid, float rating, LocalDateTime timestamp) {
+        // Existing ratings are overwritten, missing ones are inserted.
+        // Size is incremented when a brand-new rating is added
         RatingWrapper userRatings = userIndex.get(userid);
         if (userRatings != null) {
-            if (userRatings.put(movieid, rating, timestamp) == null)
+            if (userRatings.put(movieid, rating, timestamp) == null) {
+                // Null return means it was a new rating so increment size
                 size++;
-
+            }
         } else {
             userIndex.put(userid, new RatingWrapper(movieid, rating, timestamp));
             size++;
         }
 
+        // The movie-side update mirrors the user-side one. No size
+        // increment because it has already been accounted for above
         RatingWrapper movieRatings = movieIndex.get(movieid);
         if (movieRatings != null) {
             movieRatings.put(userid, rating, timestamp);
         } else {
-            movieIndex.put(userid, new RatingWrapper(movieid, rating, timestamp));
+            movieIndex.put(movieid, new RatingWrapper(userid, rating, timestamp));
         }
 
         return true;
@@ -145,10 +161,12 @@ public class Ratings implements IRatings {
     @Override
     public float[] getMovieRatings(int movieid) {
         RatingWrapper movie = movieIndex.get(movieid);
+        // Check if movie exists
         if (movie == null) {
             return new float[0];
         }
 
+        // Unbox each Rating into a primitive float
         float[] ratings = new float[movie.size()];
         int i = 0;
         for (var rating : movie.ratings()) {
@@ -172,6 +190,7 @@ public class Ratings implements IRatings {
             return new float[0];
         }
 
+        // Same unboxing pattern as getMovieRatings, but from the user side.
         float[] ratings = new float[user.size()];
         int i = 0;
         for (var rating : user.ratings()) {
@@ -192,7 +211,9 @@ public class Ratings implements IRatings {
     @Override
     public float getMovieAverageRating(int movieid) {
         var movie = movieIndex.get(movieid);
+        // Check if movie exists
         if (movie == null) {
+            // If film doesn't exist in movie store return -1
             if (stores.getMovies().getOverview(movieid) == null) {
                 return -1.0f;
             }
@@ -212,6 +233,7 @@ public class Ratings implements IRatings {
     @Override
     public float getUserAverageRating(int userid) {
         var user = userIndex.get(userid);
+        // Check if user exists
         if (user == null || user.size() == 0) {
             return -1.0f;
         }
@@ -229,16 +251,20 @@ public class Ratings implements IRatings {
      */
     @Override
     public int[] getMostRatedMovies(int num) {
+        // Build a (movie id, rating count) snapshot so TopK can rank without
+        // needing to know about RatingWrapper internals
         RatingCount[] movieRatingCount = new RatingCount[movieIndex.size()];
         int i = 0;
 
-        for (var ratings : movieIndex.entrySet()) {
+        for (var ratings : movieIndex.entryList()) {
             movieRatingCount[i++] = new RatingCount(ratings.getKey(), ratings.getValue().size());
         }
 
+        // Initialise topK with reversed comparator for highest count first
         TopK<RatingCount> topK = new
                 TopK<>(Comparator.comparingInt(RatingCount::ratingCount).reversed());
 
+        // Retrieve topK and map the ranked records to movie ids
         return topK.topKInt(movieRatingCount, num, RatingCount::entity);
     }
 
@@ -252,16 +278,20 @@ public class Ratings implements IRatings {
      */
     @Override
     public int[] getMostRatedUsers(int num) {
+        // Build a (user id, rating count) snapshot so TopK can rank without
+        // needing to know about RatingWrapper internals
         RatingCount[] userRatingCount = new RatingCount[userIndex.size()];
         int i = 0;
 
-        for (var ratings : userIndex.entrySet()) {
+        for (var ratings : userIndex.entryList()) {
             userRatingCount[i++] = new RatingCount(ratings.getKey(), ratings.getValue().size());
         }
 
+        // Initialise topK with reversed comparator for highest count first
         TopK<RatingCount> topK = new
                 TopK<>(Comparator.comparingInt(RatingCount::ratingCount).reversed());
 
+        // Retrieve topK and map the ranked records to user ids
         return topK.topKInt(userRatingCount, num, RatingCount::entity);
     }
 
@@ -276,7 +306,9 @@ public class Ratings implements IRatings {
     @Override
     public int getNumRatings(int movieid) {
         var movie = movieIndex.get(movieid);
+        // Check if movie exists
         if (movie == null) {
+            // Check if movie exists in movie store
             if (stores.getMovies().getOverview(movieid) == null) {
                 return -1;
             }
@@ -296,20 +328,24 @@ public class Ratings implements IRatings {
      */
     @Override
     public int[] getTopAverageRatedMovies(int numResults) {
+        // Check if move index is not 0
         if (numResults <= 0 || movieIndex.size() == 0) {
             return new int[0];
         }
 
+        // Map to (movieId, avgRating) record for every film to facilitate topK
         MovieRating[] movieRatings = new MovieRating[movieIndex.size()];
         int count = 0;
 
-        for (Map.Entry<Integer, RatingWrapper> ratingMap : movieIndex.entrySet()) {
+        for (Map.Entry<Integer, RatingWrapper> ratingMap : movieIndex.entryList()) {
             movieRatings[count++] = new MovieRating(ratingMap.getKey(), ratingMap.getValue().averageRating());
         }
 
+        // Initialise topK with reversed comparator for highest average first
         TopK<MovieRating> topK = new
                 TopK<>(Comparator.comparingDouble(MovieRating::avgRating).reversed());
 
+        // Retrieve topK and map the ranked records to movie ids
         return topK.topKInt(movieRatings, numResults, MovieRating::movieId);
     }
 

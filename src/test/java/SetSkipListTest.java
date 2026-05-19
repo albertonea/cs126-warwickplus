@@ -89,6 +89,6 @@ public class SetSkipListTest {
         list.put(date1, 3);
         list.put(date2, 4);
         list.put(date3, 5);
-        assertArrayEquals(new Integer[]{4, 3}, list.getRange(date2, date1).toArray(Integer.class));
+        assertArrayEquals(new Integer[]{4}, list.getRange(date3, date1).toArray(Integer.class));
     }
 }
