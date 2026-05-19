@@ -8,7 +8,7 @@ import java.util.Objects;
 
 /**
  * Separately chained hash map. Each
- * bucket is a singly-linked chain of {@link Node} entries
+ * bucket is a singly linked chain of {@link Node} entries
  *
  * @param <K> the type of key stored in the map
  * @param <V> the type of value stored in the map

@@ -11,14 +11,14 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 /**
- * Doubly-linked list with head and tail pointers
+ * Doubly linked list with head and tail pointers
  *
  * @param <E> the type of element stored
  */
 public class LinkedList<E> implements List<E> {
     // First element of the list, or null when the list is empty
     Element<E> head;
-    // Last element of the list; kept in sync so append is O(1)
+    // Last element of the list, kept in sync so append is O(1)
     Element<E> tail;
     // Cached element count so size() is O(1)
     int size;

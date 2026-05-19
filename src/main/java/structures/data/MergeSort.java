@@ -35,7 +35,7 @@ public final class MergeSort {
     }
 
     /**
-     * Recursive merge-sort core. The {@code tmp} and {@code arr} buffers
+     * Recursive top down mergesort. The {@code tmp} and {@code arr} buffers
      * swap roles at each level so we merge from the fresh buffer into the
      * stale one without an extra copy
      *
@@ -56,7 +56,7 @@ public final class MergeSort {
         mergesort(arr, tmp, from, mid, cmp);
         mergesort(arr, tmp, mid, to, cmp);
 
-        // Already-sorted shortcut: if tmp[mid-1] <= tmp[mid] just copy across
+        // Already-sorted shortcut if tmp[mid-1] <= tmp[mid] just copy across
         if (cmp.compare(tmp[mid - 1], tmp[mid]) <= 0) {
             System.arraycopy(tmp, from, arr, from, to - from);
             return;
@@ -97,7 +97,7 @@ public final class MergeSort {
     }
 
     /**
-     * In-place insertion sort over {@code arr[from..to)}
+     * In place insertion sort over {@code arr[from..to)}
      *
      * @param arr the array being sorted
      * @param from inclusive lower bound

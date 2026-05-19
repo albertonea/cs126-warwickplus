@@ -1,7 +1,7 @@
 package structures.ratings;
 
 /**
- * Lightweight immutable pair of a film id and its average rating. Used as
+ * Immutable pair of a film id and its average rating. Used as
  * the comparable element type when {@code Ratings.getTopAverageRatedMovies}
  * runs a top-k partial sort over the per-film average ratings.
  *

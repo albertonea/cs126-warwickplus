@@ -7,6 +7,7 @@ import interfaces.IRatings;
 import structures.data.*;
 import structures.data.interfaces.Map;
 import structures.ratings.MovieRating;
+import structures.ratings.Rating;
 import structures.ratings.RatingCount;
 import structures.ratings.RatingWrapper;
 
@@ -54,18 +55,21 @@ public class Ratings implements IRatings {
             return false;
         }
 
+        // Instantiate shared Rating reference
+        Rating ratingObj = new Rating(rating, timestamp);
+
         // Update each index: create a fresh wrapper on the
         // first sighting of the key, otherwise extend the existing one
         if (userRatings != null) {
-            userRatings.put(movieid, rating, timestamp);
+            userRatings.put(movieid, ratingObj);
         } else {
-            userIndex.put(userid, new RatingWrapper(movieid, rating, timestamp));
+            userIndex.put(userid, new RatingWrapper(movieid, ratingObj));
         }
 
         if (movieRatings != null) {
-            movieRatings.put(userid, rating, timestamp);
+            movieRatings.put(userid, ratingObj);
         } else {
-            movieIndex.put(movieid, new RatingWrapper(userid, rating, timestamp));
+            movieIndex.put(movieid, new RatingWrapper(userid, ratingObj));
         }
 
         // Increment number of ratings stored
@@ -126,16 +130,19 @@ public class Ratings implements IRatings {
      */
     @Override
     public boolean set(int userid, int movieid, float rating, LocalDateTime timestamp) {
+        // Instantiate shared Rating reference
+        Rating ratingObj = new Rating(rating, timestamp);
+
         // Existing ratings are overwritten, missing ones are inserted.
-        // Size is incremented when a brand-new rating is added
+        // Size is incremented when new rating is added
         RatingWrapper userRatings = userIndex.get(userid);
         if (userRatings != null) {
-            if (userRatings.put(movieid, rating, timestamp) == null) {
+            if (userRatings.put(movieid, ratingObj) == null) {
                 // Null return means it was a new rating so increment size
                 size++;
             }
         } else {
-            userIndex.put(userid, new RatingWrapper(movieid, rating, timestamp));
+            userIndex.put(userid, new RatingWrapper(movieid, ratingObj));
             size++;
         }
 
@@ -143,9 +150,9 @@ public class Ratings implements IRatings {
         // increment because it has already been accounted for above
         RatingWrapper movieRatings = movieIndex.get(movieid);
         if (movieRatings != null) {
-            movieRatings.put(userid, rating, timestamp);
+            movieRatings.put(userid, ratingObj);
         } else {
-            movieIndex.put(movieid, new RatingWrapper(userid, rating, timestamp));
+            movieIndex.put(movieid, new RatingWrapper(userid, ratingObj));
         }
 
         return true;

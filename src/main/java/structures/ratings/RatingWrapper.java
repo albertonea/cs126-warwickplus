@@ -23,11 +23,10 @@ public class RatingWrapper {
      * Builds a wrapper seeded with a single rating
      *
      * @param id        the id on the other side of the relationship
-     * @param rating    the star rating
-     * @param timestamp the time the rating was recorded
+     * @param rating    the rating
      */
-    public RatingWrapper(int id, float rating, LocalDateTime timestamp) {
-        put(id, rating, timestamp);
+    public RatingWrapper(int id, Rating rating) {
+        put(id, rating);
     }
 
     /**
@@ -35,18 +34,17 @@ public class RatingWrapper {
      * keeping the running total in sync
      *
      * @param id the id on the other side of the relationship
-     * @param rating the star rating to store
-     * @param timestamp the time the rating was recorded
+     * @param rating the rating to store
      * @return the {@link Rating} that was displaced, or {@code null} when
      *         this is the first rating for {@code id}
      */
-    public Rating put(int id, float rating, LocalDateTime timestamp) {
-        Rating oldRating = ratings.put(id, new Rating(rating, timestamp));
+    public Rating put(int id, Rating rating) {
+        Rating oldRating = ratings.put(id, rating);
         // If an existing rating was replaced, subtract its contribution
         if (oldRating != null) {
             total -= oldRating.getRating();
         }
-        total += rating;
+        total += rating.getRating();
         return oldRating;
     }
 

@@ -10,7 +10,7 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 /**
- * Hash-table backed implementation of {@link Set}. Stores members as keys
+ * HashMap backed implementation of {@link Set}. Stores members as keys
  * in a {@link HashMap} with a single shared placeholder object as the value,
  * reusing the hashmap collision handling and resize logic
  *
