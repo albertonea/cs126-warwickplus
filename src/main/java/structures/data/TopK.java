@@ -110,6 +110,12 @@ public class TopK<E> {
      */
     private void quickSortToTopK(E[] arr, int from, int to, int targetIdx) {
         if (from < to) {
+            // Partition requires 3 element sub list so handle 2 element directly
+            if (to - from == 1) {
+                if (comparator.compare(arr[from], arr[to]) > 0) swap(arr, from, to);
+                return;
+            }
+
             int pivotIdx = partition(arr, from, to);
 
             if (pivotIdx >= targetIdx) {
